@@ -15,10 +15,6 @@ from common.types import (
     JSONRPCResponse,
     Message,
     PushNotificationConfig,
-    SendTaskRequest,  # deprecated
-    SendTaskResponse,  # deprecated
-    SendTaskStreamingRequest,  # deprecated
-    SendTaskStreamingResponse,  # deprecated
     SendMessageRequest,
     SendMessageResponse,
     SendMessageStreamRequest,
@@ -26,7 +22,6 @@ from common.types import (
     Task,
     TaskArtifactUpdateEvent,
     TaskIdParams,
-    TaskSendParams,  # deprecated
     TaskState,
     TaskStatus,
     TaskStatusUpdateEvent,
@@ -85,7 +80,7 @@ class AgentTaskManager(InMemoryTaskManager):
         return task_status, artifacts
 
     async def _run_streaming_agent(
-        self, request: SendTaskStreamingRequest | SendMessageStreamRequest
+        self, request: SendMessageStreamRequest
     ):
         task_id, context_id = self._extract_task_and_context(request.params)
         query = self._get_user_query(request.params)
@@ -189,10 +184,7 @@ class AgentTaskManager(InMemoryTaskManager):
 
     def _validate_request(
         self,
-        request: SendTaskRequest
-        | SendTaskStreamingRequest
-        | SendMessageRequest
-        | SendMessageStreamRequest,
+        request: SendMessageRequest | SendMessageStreamRequest,
     ) -> JSONRPCResponse | None:
         outputValid = self._validate_output_modes(
             request, ExtractorAgent.SUPPORTED_CONTENT_TYPES
@@ -200,40 +192,6 @@ class AgentTaskManager(InMemoryTaskManager):
         if outputValid:
             return outputValid
         return self._validate_push_config(request)
-
-    # deprecated
-    async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
-        """Handles the 'send task' request."""
-        validation_error = self._validate_request(request)
-        if validation_error:
-            return SendTaskResponse(id=request.id, error=validation_error.error)
-
-        if request.params.pushNotification:
-            if not await self.set_push_notification_info(
-                request.params.id, request.params.pushNotification
-            ):
-                return SendTaskResponse(
-                    id=request.id,
-                    error=InvalidParamsError(
-                        message="Push notification URL is invalid"
-                    ),
-                )
-
-        await self.upsert_task(request.params)
-        task = await self.update_store(
-            request.params.id, TaskStatus(state=TaskState.WORKING), []
-        )
-        await self.send_task_notification(task)
-
-        task_send_params: TaskSendParams = request.params
-        query = self._get_user_query(task_send_params)
-        try:
-            agent_response = await self.agent.invoke(query, task_send_params.sessionId)
-        except Exception as e:
-            logger.error(f"Error invoking agent: {e}")
-            raise ValueError(f"Error invoking agent: {e}")
-
-        return await self._process_agent_response(request, agent_response)
 
     async def on_send_message(self, request: SendMessageRequest) -> SendMessageResponse:
         """Handles the 'send task' request."""
@@ -311,74 +269,6 @@ class AgentTaskManager(InMemoryTaskManager):
                 ),
             )
 
-    async def _process_agent_response(
-        self, request: SendTaskRequest, agent_response: dict[str, Any]
-    ) -> SendTaskResponse:
-        """Processes the agent's response and updates the task store."""
-        task_send_params: TaskSendParams = request.params
-        task_id = task_send_params.id
-        history_length = task_send_params.historyLength
-
-        task_status, artifacts = self._parse_agent_outcome(agent_response)
-
-        task = await self.update_store(task_id, task_status, artifacts)
-        task_result = self.append_task_history(task, history_length)
-        await self.send_task_notification(task)
-        return SendTaskResponse(id=request.id, result=task_result)
-
-    async def _process_agent_mesage_response(
-        self, request: SendMessageRequest, agent_response: dict[str, Any]
-    ) -> SendMessageResponse:
-        """Processes the agent's response and updates the task store."""
-        task_id, _ = self._extract_task_and_context(request.params)
-        history_length = request.params.configuration.historyLength
-
-        task_status, artifacts = self._parse_agent_outcome(agent_response)
-
-        task = await self.update_store(task_id, task_status, artifacts)
-        task_result = self.append_task_history(task, history_length)
-        await self.send_task_notification(task)
-        return SendMessageResponse(id=request.id, result=task_result)
-
-    # deprecated
-    async def on_send_task_subscribe(
-        self, request: SendTaskStreamingRequest
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
-        try:
-            if error := self._validate_request(request):
-                return error
-
-            await self.upsert_task(request.params)
-
-            if request.params.pushNotification:
-                if not await self.set_push_notification_info(
-                    request.params.id, request.params.pushNotification
-                ):
-                    return JSONRPCResponse(
-                        id=request.id,
-                        error=InvalidParamsError(
-                            message="Push notification URL is invalid"
-                        ),
-                    )
-
-            task_send_params: TaskSendParams = request.params
-            sse_event_queue = await self.setup_sse_consumer(task_send_params.id, False)
-
-            asyncio.create_task(self._run_streaming_agent(request))
-
-            return self.dequeue_events_for_sse(  # type: ignore
-                request.id, task_send_params.id, sse_event_queue
-            )
-        except Exception as e:
-            logger.error(f"Error in SSE stream setup/dequeuing: {e}")
-            print(traceback.format_exc())
-            return JSONRPCResponse(
-                id=request.id,
-                error=InternalError(
-                    message="An error occurred while streaming the response"
-                ),
-            )
-
     async def _process_agent_message_response(
         self, request: SendMessageRequest, agent_response: dict[str, Any]
     ) -> SendMessageResponse:
@@ -406,7 +296,7 @@ class AgentTaskManager(InMemoryTaskManager):
 
     async def on_resubscribe_to_task(
         self, request
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
+    ) -> AsyncIterable[SendMessageStreamResponse] | JSONRPCResponse:
         task_id_params: TaskIdParams = request.params
         try:
             sse_event_queue = await self.setup_sse_consumer(task_id_params.id, True)

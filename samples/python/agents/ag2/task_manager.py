@@ -1,17 +1,12 @@
 from typing import AsyncIterable
 from common.types import (
-    SendTaskRequest,  # deprecated
-    TaskSendParams,  # deprecated
     Message,
     TaskStatus,
     Artifact,
     TextPart,
     TaskState,
-    SendTaskResponse,  # deprecated
     InternalError,
     JSONRPCResponse,
-    SendTaskStreamingRequest,  # deprecated
-    SendTaskStreamingResponse,  # deprecated
     TaskArtifactUpdateEvent,
     TaskStatusUpdateEvent,
     SendMessageRequest,
@@ -27,27 +22,6 @@ import asyncio
 import logging
 import traceback
 import uuid
-
-from collections.abc import AsyncIterable
-
-from common.server import utils
-from common.server.task_manager import InMemoryTaskManager
-from common.types import (
-    Artifact,
-    InternalError,
-    JSONRPCResponse,
-    Message,
-    SendTaskRequest,
-    SendTaskResponse,
-    SendTaskStreamingRequest,
-    SendTaskStreamingResponse,
-    TaskArtifactUpdateEvent,
-    TaskSendParams,
-    TaskState,
-    TaskStatus,
-    TaskStatusUpdateEvent,
-    TextPart,
-)
 
 from .agent import YoutubeMCPAgent
 
@@ -65,43 +39,6 @@ class AgentTaskManager(InMemoryTaskManager):
     # -------------------------------------------------------------
     # Public API methods
     # -------------------------------------------------------------
-
-    # deprecated
-    async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
-        """
-        Handle synchronous task requests.
-
-        This method processes one-time task requests and returns a complete response.
-        Unlike streaming tasks, this waits for the full agent response before returning.
-        """
-        validation_error = self._validate_request(request)
-        if validation_error:
-            return SendTaskResponse(id=request.id, error=validation_error.error)
-
-        await self.upsert_task(request.params)
-        # Update task store to WORKING state (return value not used)
-        await self.update_store(
-            request.params.id, TaskStatus(state=TaskState.WORKING), None
-        )
-
-        task_send_params: TaskSendParams = request.params
-        query = self._extract_user_query(task_send_params)
-
-        try:
-            agent_response = self.agent.invoke(
-                query, task_send_params.sessionId
-            )
-            task = await self._handle_send_task(request, agent_response)
-            return SendTaskResponse(id=request.id, result=task)
-        except Exception as e:
-            logger.error(f'Error invoking agent: {e}')
-            return SendTaskResponse(
-                id=request.id,
-                error=InternalError(
-                    message=f'Error during on_send_task: {str(e)}'
-                ),
-            )
-
     async def on_send_message(
         self, request: SendMessageRequest
     ) -> SendMessageResponse:
@@ -134,48 +71,10 @@ class AgentTaskManager(InMemoryTaskManager):
             return SendMessageResponse(id=request.id, result=task)
         except Exception as e:
             logger.error(f'Error invoking agent: {e}')
-            return SendTaskResponse(
+            return SendMessageResponse(
                 id=request.id,
                 error=InternalError(
                     message=f'Error during on_send_task: {str(e)}'
-                ),
-            )
-
-    # deprecated
-    async def on_send_task_subscribe(
-        self, request: SendTaskStreamingRequest
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
-        """
-        Handle streaming task requests with SSE subscription.
-
-        This method initiates a streaming task and returns incremental updates
-        to the client as they become available. It uses Server-Sent Events (SSE)
-        to push updates to the client as the agent generates them.
-        """
-        try:
-            error = self._validate_request(request)
-            if error:
-                return error
-
-            await self.upsert_task(request.params)
-
-            task_send_params: TaskSendParams = request.params
-            sse_event_queue = await self.setup_sse_consumer(
-                task_send_params.id, False
-            )
-
-            asyncio.create_task(self._handle_send_task_streaming(request))
-
-            return self.dequeue_events_for_sse(
-                request.id, task_send_params.id, sse_event_queue
-            )
-        except Exception as e:
-            logger.error(f'Error in SSE stream: {e}')
-            print(traceback.format_exc())
-            return JSONRPCResponse(
-                id=request.id,
-                error=InternalError(
-                    message='An error occurred while streaming the response'
                 ),
             )
 
@@ -222,22 +121,23 @@ class AgentTaskManager(InMemoryTaskManager):
 
     async def _handle_send_task(
         self,
-        request: SendTaskRequest | SendMessageRequest,
+        request: SendMessageRequest,
         agent_response: dict,
     ) -> Task:
         """
-        Handle the 'tasks/send' JSON-RPC method by processing agent response.
+        Handle the 'message/send' JSON-RPC method by processing agent response.
 
         This method processes the synchronous (one-time) response from the agent,
         transforms it into the appropriate task status and artifacts, and
         returns a complete SendTaskResponse.
         """
         task_id, context_id = self.extract_task_and_context(request.params)
-        history_length = -1
-        if isinstance(request, SendTaskRequest):
-            history_length = request.params.historyLength
-        else:
-            history_length = request.params.configuration.historyLength
+        history_length = (
+            request.params.configuration.historyLength
+            if (request.params.configuration and
+                request.params.configuration.historyLength)
+            else -1
+        )
         task_status = None
 
         parts = [TextPart(type='text', text=agent_response['content'])]
@@ -265,10 +165,10 @@ class AgentTaskManager(InMemoryTaskManager):
         return task_result
 
     async def _handle_send_task_streaming(
-        self, request: SendTaskStreamingRequest | SendMessageStreamRequest
+        self, request: SendMessageStreamRequest
     ):
         """
-        Handle the 'tasks/sendSubscribe' JSON-RPC method for streaming responses.
+        Handle the 'message/stream' JSON-RPC method for streaming responses.
 
         This method processes streaming responses from the agent incrementally,
         converting each chunk into appropriate SSE events for real-time client updates.
@@ -370,11 +270,7 @@ class AgentTaskManager(InMemoryTaskManager):
     # -------------------------------------------------------------
 
     def _validate_request(
-        self,
-        request: SendTaskRequest
-        | SendTaskStreamingRequest
-        | SendMessageRequest
-        | SendMessageStreamRequest,
+        self, request: SendMessageRequest | SendMessageStreamRequest,
     ) -> JSONRPCResponse | None:
         """
         Validate task request parameters for compatibility with agent capabilities.

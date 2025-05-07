@@ -7,22 +7,17 @@ from common.types import (
     TaskQueryParams,
     GetTaskRequest,
     TaskNotFoundError,
-    SendTaskRequest,  # deprecated
     CancelTaskRequest,
     TaskNotCancelableError,
     SetTaskPushNotificationRequest,
     GetTaskPushNotificationRequest,
     GetTaskResponse,
     CancelTaskResponse,
-    SendTaskResponse,  # deprecated
     SetTaskPushNotificationResponse,
     GetTaskPushNotificationResponse,
-    TaskSendParams,  # deprecated
     TaskStatus,
     TaskState,
     TaskResubscriptionRequest,
-    SendTaskStreamingRequest,  # deprecated
-    SendTaskStreamingResponse,  # deprecated
     MessageSendParams,
     SendMessageRequest,
     SendMessageResponse,
@@ -43,42 +38,6 @@ import asyncio
 import logging
 import uuid
 
-from abc import ABC, abstractmethod
-from collections.abc import AsyncIterable
-
-from common.server.utils import new_not_implemented_error
-from common.types import (
-    Artifact,
-    CancelTaskRequest,
-    CancelTaskResponse,
-    GetTaskPushNotificationRequest,
-    GetTaskPushNotificationResponse,
-    GetTaskRequest,
-    GetTaskResponse,
-    InternalError,
-    JSONRPCError,
-    JSONRPCResponse,
-    PushNotificationConfig,
-    SendTaskRequest,
-    SendTaskResponse,
-    SendTaskStreamingRequest,
-    SendTaskStreamingResponse,
-    SetTaskPushNotificationRequest,
-    SetTaskPushNotificationResponse,
-    Task,
-    TaskIdParams,
-    TaskNotCancelableError,
-    TaskNotFoundError,
-    TaskPushNotificationConfig,
-    TaskQueryParams,
-    TaskResubscriptionRequest,
-    TaskSendParams,
-    TaskState,
-    TaskStatus,
-    TaskStatusUpdateEvent,
-)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -91,18 +50,6 @@ class TaskManager(ABC):
     async def on_cancel_task(
         self, request: CancelTaskRequest
     ) -> CancelTaskResponse:
-        pass
-
-    # deprecated
-    @abstractmethod
-    async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
-        pass
-
-    # deprecated
-    @abstractmethod
-    async def on_send_task_subscribe(
-        self, request: SendTaskStreamingRequest
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
         pass
 
     @abstractmethod
@@ -132,7 +79,7 @@ class TaskManager(ABC):
     @abstractmethod
     async def on_resubscribe_to_task(
         self, request: TaskResubscriptionRequest
-    ) -> AsyncIterable[SendTaskResponse] | JSONRPCResponse:
+    ) -> AsyncIterable[SendMessageStreamResponse] | JSONRPCResponse:
         pass
 
 
@@ -173,18 +120,6 @@ class InMemoryTaskManager(TaskManager):
                 )
 
         return CancelTaskResponse(id=request.id, error=TaskNotCancelableError())
-
-    # deprecated
-    @abstractmethod
-    async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
-        pass
-
-    # deprecated
-    @abstractmethod
-    async def on_send_task_subscribe(
-        self, request: SendTaskStreamingRequest
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
-        pass
 
     @abstractmethod
     async def on_send_message(
@@ -277,33 +212,8 @@ class InMemoryTaskManager(TaskManager):
         )
 
     async def upsert_task(
-        self, send_params: TaskSendParams | MessageSendParams
+        self, params: MessageSendParams
     ) -> Task:
-        if isinstance(send_params, TaskSendParams):
-            return await self._upsert_task_params(send_params)
-        return await self._upsert_message_params(send_params)
-
-    async def _upsert_task_params(
-        self, task_send_params: TaskSendParams
-    ) -> Task:
-        logger.info(f'Upserting task {task_send_params.id}')
-        async with self.lock:
-            task = self.tasks.get(task_send_params.id)
-            if task is None:
-                task = Task(
-                    id=task_send_params.id,
-                    contextId=task_send_params.contextId,
-                    messages=[task_send_params.message],
-                    status=TaskStatus(state=TaskState.SUBMITTED),
-                    history=[task_send_params.message],
-                )
-                self.tasks[task_send_params.id] = task
-            else:
-                task.history.append(task_send_params.message)
-
-            return task
-
-    async def _upsert_message_params(self, params: MessageSendParams) -> Task:
         taskId, contextId = self._extract_task_and_context(params)
         # Ensure consistency now
         params.message.taskId = taskId
@@ -404,27 +314,8 @@ class InMemoryTaskManager(TaskManager):
                 if task_id in self.task_sse_subscribers:
                     self.task_sse_subscribers[task_id].remove(sse_event_queue)
 
-    # deprecated
-    async def dequeue_events_for_sse(
-        self, request_id, task_id, sse_event_queue: asyncio.Queue
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
-        try:
-            while True:
-                event = await sse_event_queue.get()
-                if isinstance(event, JSONRPCError):
-                    yield SendTaskStreamingResponse(id=request_id, error=event)
-                    break
-
-                yield SendTaskStreamingResponse(id=request_id, result=event)
-                if isinstance(event, TaskStatusUpdateEvent) and event.final:
-                    break
-        finally:
-            async with self.subscriber_lock:
-                if task_id in self.task_sse_subscribers:
-                    self.task_sse_subscribers[task_id].remove(sse_event_queue)
-
     def _extract_task_and_context(
-        self, params: TaskSendParams | MessageSendParams
+        self, params: MessageSendParams
     ) -> Tuple[str, str]:
         # Extract task and context id from request, if provided else generate.
         taskId = (
@@ -439,31 +330,22 @@ class InMemoryTaskManager(TaskManager):
         )
         return taskId, contextId
 
-    def _get_user_query(
-        self, task_send_params: TaskSendParams | MessageSendParams
-    ) -> str:
-        part = task_send_params.message.parts[0]
+    def _get_user_query(self, params: MessageSendParams) -> str:
+        part = params.message.parts[0]
         if not isinstance(part, TextPart):
             raise ValueError('Only text parts are supported')
         return part.text
 
     def _validate_output_modes(
         self,
-        request: Union[
-            SendTaskRequest,
-            SendTaskStreamingRequest,
-            SendMessageRequest,
-            SendMessageStreamRequest,
-        ],
+        request: SendMessageRequest | SendMessageStreamRequest,
         supportedTypes: List[str],
     ) -> JSONRPCResponse | None:
-        acceptedOutputModes = []
-        if isinstance(request.params, TaskSendParams):
-            acceptedOutputModes = request.params.acceptedOutputModes
-        else:
-            acceptedOutputModes = (
-                request.params.configuration.acceptedOutputModes
-            )
+        acceptedOutputModes = (
+            request.params.configuration.acceptedOutputModes
+            if request.params.configuration
+            else []
+        )
         if not utils.are_modalities_compatible(
             acceptedOutputModes,
             supportedTypes,
@@ -477,20 +359,13 @@ class InMemoryTaskManager(TaskManager):
 
     def _validate_push_config(
         self,
-        request: Union[
-            SendTaskRequest,
-            SendTaskStreamingRequest,
-            SendMessageRequest,
-            SendMessageStreamRequest,
-        ],
+        request: SendMessageRequest | SendMessageStreamRequest,
     ) -> JSONRPCResponse | None:
-        pushNotificationConfig = None
-        if isinstance(request.params, TaskSendParams):
-            pushNotificationConfig = request.params.pushNotification
-        else:
-            pushNotificationConfig = (
-                request.params.configuration.pushNotification
-            )
+        pushNotificationConfig = (
+            request.params.configuration.pushNotification
+            if request.params.configuration
+            else None
+        )
         if pushNotificationConfig and not pushNotificationConfig.url:
             logger.warning('Push notification URL is missing')
             return JSONRPCResponse(

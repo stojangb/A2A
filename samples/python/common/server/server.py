@@ -22,13 +22,11 @@ from common.types import (
     JSONParseError,
     GetTaskRequest,
     CancelTaskRequest,
-    SendTaskRequest,  # deprecated
     SetTaskPushNotificationRequest,
     GetTaskPushNotificationRequest,
     InternalError,
     AgentCard,
     TaskResubscriptionRequest,
-    SendTaskStreamingRequest,  # deprecated
     SendMessageRequest,
     SendMessageStreamRequest,
     JSONRPCResponse,
@@ -84,14 +82,6 @@ class A2AServer:
 
             if isinstance(json_rpc_request, GetTaskRequest):
                 result = await self.task_manager.on_get_task(json_rpc_request)
-            elif isinstance(json_rpc_request, SendTaskRequest):
-                # This is deprecated and will be removed
-                result = await self.task_manager.on_send_task(json_rpc_request)
-            elif isinstance(json_rpc_request, SendTaskStreamingRequest):
-                # This is deprecated and will be removed
-                result = await self.task_manager.on_send_task_subscribe(
-                    json_rpc_request
-                )
             elif isinstance(json_rpc_request, CancelTaskRequest):
                 result = await self.task_manager.on_cancel_task(
                     json_rpc_request

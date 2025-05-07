@@ -11,12 +11,7 @@ from common.types import (
     FileContent,
     FilePart,
     JSONRPCResponse,
-    SendTaskRequest,  # deprecated
-    SendTaskResponse,  # deprecated
-    SendTaskStreamingRequest,  # deprecated
-    SendTaskStreamingResponse,  # deprecated
     Task,
-    TaskSendParams,  # deprecated
     TaskState,
     TaskStatus,
     SendMessageRequest,
@@ -36,27 +31,6 @@ class AgentTaskManager(InMemoryTaskManager):
         super().__init__()
         self.agent = agent
 
-    async def _stream_generator(
-        self, request: SendTaskRequest
-    ) -> AsyncIterable[SendTaskResponse]:
-        raise NotImplementedError('Not implemented')
-
-    # deprecated
-    async def on_send_task(
-        self, request: SendTaskRequest
-    ) -> SendTaskResponse | AsyncIterable[SendTaskResponse]:
-        ## only support text output at the moment
-        validateOutputModes = self._validate_output_modes(
-            request, ImageGenerationAgent.SUPPORTED_CONTENT_TYPES
-        )
-        if validateOutputModes:
-            return validateOutputModes
-
-        task_send_params: TaskSendParams = request.params
-        await self.upsert_task(task_send_params)
-
-        return await self._invoke(request)
-
     async def on_send_message(
         self, request: SendMessageRequest
     ) -> SendMessageResponse:
@@ -72,19 +46,8 @@ class AgentTaskManager(InMemoryTaskManager):
         request.params.message.contextId = contextId
         await self.upsert_task(request.params)
 
-        # Repackage the SendTaskResponse as SendMessageReponse
-        response = await self._invoke(request)
-        return SendMessageResponse(id=response.id, result=response.result)
-
-    # deprecated
-    async def on_send_task_subscribe(
-        self, request: SendTaskStreamingRequest
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
-        error = self._validate_request(request)
-        if error:
-            return error
-
-        await self.upsert_task(request.params)
+        task = await self._invoke(request)
+        return SendMessageResponse(id=request.id, result=task)
 
     async def on_send_message_stream(
         self, request: SendMessageStreamRequest
@@ -98,8 +61,8 @@ class AgentTaskManager(InMemoryTaskManager):
         request.params.message.taskId = taskId
         request.params.message.contextId = contextId
         await self.upsert_task(request.params)
-        response = await self._invoke(request)
-        yield SendMessageStreamResponse(id=response.id, result=response.result)
+        task = await self._invoke(request)
+        yield SendMessageStreamResponse(id=response.id, result=task)
 
     async def _update_store(
         self, task_id: str, status: TaskStatus, artifacts: list[Artifact]
@@ -124,9 +87,8 @@ class AgentTaskManager(InMemoryTaskManager):
             return task
 
     async def _invoke(
-        self, request: SendTaskRequest | SendMessageRequest
-    ) -> SendTaskResponse:
-        # task_send_params: TaskSendParams = request.params
+        self, request: SendMessageRequest
+    ) -> Task:
         query = self._get_user_query(request.params)
         task_id, context_id = self._extract_task_and_context(request.params)
         try:
@@ -155,9 +117,8 @@ class AgentTaskManager(InMemoryTaskManager):
                 }
             ]
 
-        task = await self._update_store(
+        return await self._update_store(
             task_id,
             TaskStatus(state=TaskState.COMPLETED),
             [Artifact(parts=parts)],
         )
-        return SendTaskResponse(id=request.id, result=task)

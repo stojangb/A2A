@@ -15,9 +15,9 @@ request_ids = set()
 
 
 def create_request_form(
-    date: str | None = None,
-    amount: str | None = None,
-    purpose: str | None = None,
+    date: Optional[str] = None,
+    amount: Optional[str] = None,
+    purpose: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     Create a request form for the employee to fill out.
@@ -45,7 +45,7 @@ def create_request_form(
 def return_form(
     form_request: dict[str, Any],
     tool_context: ToolContext,
-    instructions: str | None = None,
+    instructions: Optional[str] = None,
 ) -> dict[str, Any]:
     """
     Returns a structured json object indicating a form to complete.

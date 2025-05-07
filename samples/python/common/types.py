@@ -194,17 +194,6 @@ class TaskQueryParams(TaskIdParams):
     historyLength: int | None = None
 
 
-# This is being deprecated for MessageSendParams
-class TaskSendParams(BaseModel):
-    id: str
-    contextId: str = Field(default_factory=lambda: uuid4().hex)
-    message: Message
-    acceptedOutputModes: list[str] | None = None
-    pushNotification: PushNotificationConfig | None = None
-    historyLength: int | None = None
-    metadata: dict[str, Any] | None = None
-
-
 # Represents the configuration of the message send.
 class MessageSendConfiguration(BaseModel):
     acceptedOutputModes: Optional[List[str]] = None
@@ -253,26 +242,6 @@ class JSONRPCResponse(JSONRPCMessage):
     error: JSONRPCError | None = None
 
 
-# These four SendTask* objects are deprecated in favor of SendMessage
-# interfaces.
-class SendTaskRequest(JSONRPCRequest):
-    method: Literal['tasks/send'] = 'tasks/send'
-    params: TaskSendParams
-
-
-class SendTaskResponse(JSONRPCResponse):
-    result: Task | None = None
-
-
-class SendTaskStreamingRequest(JSONRPCRequest):
-    method: Literal['tasks/sendSubscribe'] = 'tasks/sendSubscribe'
-    params: TaskSendParams
-
-
-class SendTaskStreamingResponse(JSONRPCResponse):
-    result: TaskStatusUpdateEvent | TaskArtifactUpdateEvent | None = None
-
-
 class SendMessageRequest(JSONRPCRequest):
     method: Literal['message/send'] = 'message/send'
     params: MessageSendParams
@@ -283,7 +252,7 @@ class SendMessageResponse(JSONRPCResponse):
 
 
 class SendMessageStreamRequest(JSONRPCRequest):
-    method: Literal['message/sendStream'] = 'message/sendStream'
+    method: Literal['message/stream'] = 'message/stream'
     params: MessageSendParams
 
 
@@ -335,13 +304,11 @@ class TaskResubscriptionRequest(JSONRPCRequest):
 A2ARequest = TypeAdapter(
     Annotated[
         (
-            SendTaskRequest
-            | GetTaskRequest
+            GetTaskRequest
             | CancelTaskRequest
             | SetTaskPushNotificationRequest
             | GetTaskPushNotificationRequest
-            | TaskResubscriptionRequest  # deprecated
-            | SendTaskStreamingRequest  # deprecated
+            | TaskResubscriptionRequest
             | SendMessageRequest
             | SendMessageStreamRequest
         ),

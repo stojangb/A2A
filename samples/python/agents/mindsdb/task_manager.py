@@ -1,6 +1,5 @@
 from typing import AsyncIterable
 from common.types import (
-    SendTaskRequest,  # deprecated
     Message,
     TaskStatus,
     Artifact,
@@ -8,11 +7,8 @@ from common.types import (
     TaskArtifactUpdateEvent,
     TaskState,
     Task,
-    SendTaskResponse,  # deprecated
     InternalError,
     JSONRPCResponse,
-    SendTaskStreamingRequest,  # deprecated
-    SendTaskStreamingResponse,  # deprecated
     SendMessageRequest,
     SendMessageResponse,
     SendMessageStreamRequest,
@@ -33,13 +29,18 @@ class AgentTaskManager(InMemoryTaskManager):
         self.agent = agent
 
     async def _stream_generator(
-        self, request: SendTaskStreamingRequest | SendMessageStreamRequest
+        self, request: SendMessageStreamRequest
     ) -> (
-        AsyncIterable[TaskStatusUpdateEvent | TaskArtifactUpdateEvent]
+        AsyncIterable[Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent]
         | JSONRPCResponse
     ):
         task_id, context_id = self._extract_task_and_context(request.params)
         query = self._get_user_query(request.params)
+        yield Task(
+            id=task_id,
+            contextId=contextId,
+            status=TaskStatus(state=TaskState.SUBMITTED)
+        )
         try:
             async for item in self.agent.stream(query, context_id):
                 is_task_complete = item['is_task_complete']
@@ -93,12 +94,7 @@ class AgentTaskManager(InMemoryTaskManager):
 
     def _validate_request(
         self,
-        request: Union[
-            SendTaskRequest,
-            SendTaskStreamingRequest,
-            SendMessageRequest,
-            SendMessageStreamRequest,
-        ],
+        request: SendMessageRequest | SendMessageStreamRequest,
     ) -> JSONRPCResponse | None:
         invalidOutput = self._validate_output_modes(
             request, MindsDBAgent.SUPPORTED_CONTENT_TYPES
@@ -107,15 +103,6 @@ class AgentTaskManager(InMemoryTaskManager):
             logger.warning(invalidOutput.error)
             return invalidOutput
         return None
-
-    # deprecated
-    async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
-        error = self._validate_request(request)
-        if error:
-            return error
-        await self.upsert_task(request.params)
-        task = await self._invoke(request)
-        return SendTaskResponse(id=request.id, result=task)
 
     async def on_send_message(
         self, request: SendMessageRequest
@@ -130,30 +117,6 @@ class AgentTaskManager(InMemoryTaskManager):
         task = await self._invoke(request)
         return SendMessageResponse(id=request.id, result=task)
 
-    # deprecated
-    async def on_send_task_subscribe(
-        self, request: SendTaskStreamingRequest
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
-        error = self._validate_request(request)
-        if error:
-            return error
-        task_id, context_id = self._extract_task_and_context(request.params)
-        request.params.message.taskId = task_id
-        request.params.message.contextId = context_id
-        await self.upsert_task(request.params)
-        stream = self._stream_generator(request)
-        if isinstance(stream, AsyncIterable):
-
-            async def wrap_tasks(
-                stream,
-            ) -> AsyncIterable[SendTaskStreamingRequest]:
-                async for x in stream:
-                    yield SendTaskStreamingResponse(id=request.id, result=x)
-
-            return wrap_tasks(stream)
-        else:
-            return stream
-
     async def on_send_message_stream(
         self, request: SendMessageStreamRequest
     ) -> AsyncIterable[SendMessageStreamResponse] | JSONRPCResponse:
@@ -166,7 +129,6 @@ class AgentTaskManager(InMemoryTaskManager):
         await self.upsert_task(request.params)
         stream = self._stream_generator(request)
         if isinstance(stream, AsyncIterable):
-
             async def wrap_tasks(
                 stream,
             ) -> AsyncIterable[SendMessageStreamRequest]:
@@ -195,9 +157,7 @@ class AgentTaskManager(InMemoryTaskManager):
                 task.artifacts.extend(artifacts)
             return task
 
-    async def _invoke(
-        self, request: SendTaskRequest | SendMessageRequest
-    ) -> Task:
+    async def _invoke(self, request: SendMessageRequest) -> Task:
         task_id, context_id = self._extract_task_and_context(request.params)
         query = self._get_user_query(request.params)
         try:
