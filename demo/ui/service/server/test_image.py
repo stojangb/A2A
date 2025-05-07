@@ -3,10 +3,12 @@ from common.types import (
     FilePart,
     Message,
 )
-
+import uuid
 
 test_image = Message(
     role='agent',
+    messageId=str(uuid.uuid4()),
+    contextId='',
     parts=[
         FilePart(
             type='file',
@@ -20,3 +22,8 @@ test_image = Message(
         )
     ],
 )
+
+
+def make_test_image(contextId: str) -> Message:
+    test_image.contextId = contextId
+    return test_image

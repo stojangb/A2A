@@ -1,13 +1,14 @@
-from typing import Annotated, Literal
+from typing import Union
+from pydantic import BaseModel, Field, TypeAdapter
+from typing import Literal, Annotated, Tuple
 
 from common.types import (
-    AgentCard,
-    JSONRPCRequest,
-    JSONRPCResponse,
     Message,
     Task,
+    JSONRPCRequest,
+    JSONRPCResponse,
+    AgentCard,
 )
-from pydantic import BaseModel, Field, TypeAdapter
 
 
 class Conversation(BaseModel):
@@ -43,7 +44,7 @@ class ListMessageResponse(JSONRPCResponse):
 
 class MessageInfo(BaseModel):
     message_id: str
-    conversation_id: str
+    context_id: str
 
 
 class SendMessageResponse(JSONRPCResponse):

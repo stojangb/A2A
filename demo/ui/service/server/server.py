@@ -97,10 +97,8 @@ class ConversationServer:
         t.start()
         return SendMessageResponse(
             result=MessageInfo(
-                message_id=message.metadata['message_id'],
-                conversation_id=message.metadata['conversation_id']
-                if 'conversation_id' in message.metadata
-                else '',
+                message_id=message.messageId,
+                context_id=message.contextId if message.contextId else ''
             )
         )
 

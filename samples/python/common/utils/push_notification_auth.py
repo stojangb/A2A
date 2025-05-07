@@ -79,6 +79,7 @@ class PushNotificationSenderAuth(PushNotificationAuth):
         Payload is signed with private key and it ensures the integrity of payload for client.
         Including iat prevents from replay attack.
         """
+
         iat = int(time.time())
 
         return jwt.encode(

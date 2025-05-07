@@ -68,60 +68,95 @@
     }
     ```
 
-### Send a Task
+### Send a Message
 
-Allows a client to send content to a remote agent to start a new Task, resume an interrupted Task, or reopen a completed Task. A Task interrupt may be caused by an agent requiring additional user input or a runtime error.
+Allows a client to send content to a remote agent to interact, start a new Task, resume an interrupted Task, or reopen a completed Task. A Task interrupt may be caused by an agent requiring additional user input or a runtime error.
 
 === "Request"
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "method": "tasks/send",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "message": {
-       "role": "user",
-       "parts": [
-        {
-         "type": "text",
-         "text": "tell me a joke"
-        }
-       ]
-      },
-      "metadata": {}
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "message/send",
+  "params": {
+    "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "tell me a joke"
+        }
+      ],
+      "messageId": "9229e770-767c-417b-a0b0-f0741243c589"
+    },
+    "metadata": {}
+  }
+}
+```
 
-=== "Response"
+**Response - agent creates a Task:**
 
-    ```json
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "363422be-b0f9-4692-a24d-278670e7c7f1",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "completed"
+    },
+    "artifacts": [
+      {
+        "name": "joke",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Why did the chicken cross the road? To get to the other side!"
+          }
+        ]
+      }
+    ],
+    "history": [
     {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "status": {
-       "state": "completed"
-      },
-      "artifacts": [
-       {
-        "name": "joke",
-        "parts": [
-         {
-          "type": "text",
-          "text": "Why did the chicken cross the road? To get to the other side!"
-         }
-        ]
-       }
-      ],
-      "metadata": {}
-     }
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "tell me a joke"
+        }
+      ],
+      "messageId": "9229e770-767c-417b-a0b0-f0741243c589",
+      "taskId": "363422be-b0f9-4692-a24d-278670e7c7f1",
+      "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
     }
-    ```
+    ],
+    "metadata": {}
+  }
+}
+```
+
+**Response - agent responds without a task:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "messageId": "363422be-b0f9-4692-a24d-278670e7c7f1",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "parts": [
+      {
+        "type": "text",
+        "text": "Why did the chicken cross the road? To get to the other side!"
+      }
+    ],
+    "metadata": {}
+  }
+}
+```
 
 ### Get a Task
 
@@ -131,56 +166,59 @@ The client may also request the last N items of history for the Task, which will
 
 === "Request"
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "method": "tasks/get",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "historyLength": 10,
-      "metadata": {}
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tasks/get",
+  "params": {
+    "id": "363422be-b0f9-4692-a24d-278670e7c7f1",
+    "historyLength": 10,
+    "metadata": {}
+  }
+}
+```
 
 === "Response"
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "status": {
-       "state": "completed"
-      },
-      "artifacts": [
-       {
-        "parts": [
-         {
-          "type": "text",
-          "text": "Why did the chicken cross the road? To get to the other side!"
-         }
-        ]
-       }
-      ],
-      "history": [
-       {
-        "role": "user",
-        "parts": [
-         {
-          "type": "text",
-          "text": "tell me a joke"
-         }
-        ]
-       }
-      ],
-      "metadata": {}
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "363422be-b0f9-4692-a24d-278670e7c7f1",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "completed"
+    },
+    "artifacts": [
+      {
+        "parts": [
+          {
+            "type": "text",
+            "text": "Why did the chicken cross the road? To get to the other side!"
+          }
+        ]
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "tell me a joke"
+          }
+        ],
+        "messageId": "9229e770-767c-417b-a0b0-f0741243c589",
+        "taskId": "363422be-b0f9-4692-a24d-278670e7c7f1",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      }
+    ],
+    "metadata": {}
+  }
+}
+```
 
 ### Cancel a Task
 
@@ -202,20 +240,20 @@ A client may choose to cancel previously submitted Tasks.
 
 === "Response"
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "status": {
-       "state": "canceled"
-      },
-      "metadata": {}
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "canceled"
+    },
+    "metadata": {}
+  }
+}
+```
 
 ### Set Task Push Notifications
 
@@ -301,30 +339,73 @@ The Message included in the `input-required` state must include details indicati
 
 **Interaction 1: Initial Request and Agent Prompt**
 
-=== "Request (Sequence 1)"
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "message/send",
+  "params": {
+    "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "request a new phone for me"
+        }
+      ],
+      "messageId": "c53ba666-3f97-433c-a87b-6084276babe2"
+    },
+    "configuration": {
+      "blocking": True,
+    },
+    "metadata": {}
+  }
+}
+```
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "method": "tasks/send",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "message": {
-       "role": "user",
-       "parts": [
-        {
-         "type": "text",
-         "text": "request a new phone for me"
-        }
-       ]
-      },
-      "metadata": {}
-     }
-    }
-    ```
+**Response (Sequence 2 - Input Required Status Update):**
 
-=== "Response (Sequence 2 - Input Required)"
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "input-required",
+      "message": {
+        "role": "agent",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Select a phone type (iPhone/Android)"
+          }
+        ],
+        "messageId": "c2e1b2dd-f200-4b04-bc22-1b0c65a1aad2",
+        "taskId": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      }
+    },
+    "history": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "request a new phone for me"
+          }
+        ],
+        "messageId": "c53ba666-3f97-433c-a87b-6084276babe2",
+        "taskId": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      }
+    ],
+    "metadata": {}
+  }
+}
+```
 
     ```json
     {
@@ -350,173 +431,233 @@ The Message included in the `input-required` state must include details indicati
     }
     ```
 
-**Interaction 2: Providing Input and Completion**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "message/send",
+  "params": {
+    "id": "a6d3deb2-e75c-4155-ac21-1f7504d71483",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Android"
+        }
+      ],
+      "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+      "taskId": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+      "messageId": "0db1d6c4-3976-40ed-b9b8-0043ea7a03d3"
+    },
+    "configuration": {
+      "blocking": True,
+    },
+    "metadata": {}
+  }
+}
+```
 
-=== "Request (Sequence 3 - Providing Input)"
+**Response (Sequence 4 - Task Completion):**
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 2,
-     "method": "tasks/send",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "message": {
-       "role": "user",
-       "parts": [
-        {
-         "type": "text",
-         "text": "Android"
-        }
-       ]
-      },
-      "metadata": {}
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "id": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "completed"
+    },
+    "artifacts": [
+      {
+        "name": "order-confirmation",
+        "parts": [
+          {
+            "type": "text",
+            "text": "I have ordered a new Android device for you. Your request number is R12443"
+          }
+        ],
+        "metadata": {}
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "request a new phone for me"
+          }
+        ],
+        "messageId": "c53ba666-3f97-433c-a87b-6084276babe2",
+        "taskId": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      },
+      {
+        "role": "agent",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Select a phone type (iPhone/Android)"
+          }
+        ],
+        "messageId": "c2e1b2dd-f200-4b04-bc22-1b0c65a1aad2",
+        "taskId": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Android"
+          }
+        ],
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+        "taskId": "3f36680c-7f37-4a5f-945e-d78981fafd36",
+        "messageId": "0db1d6c4-3976-40ed-b9b8-0043ea7a03d3"
+      }
+    ],
+    "metadata": {}
+  }
+}
+```
 
-=== "Response (Sequence 4 - Completion)"
-
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 2,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "status": {
-       "state": "completed"
-      },
-      "artifacts": [
-       {
-        "name": "order-confirmation",
-        "parts": [
-         {
-          "type": "text",
-          "text": "I have ordered a new Android device for you. Your request number is R12443"
-         }
-        ],
-        "metadata": {}
-       }
-      ],
-      "metadata": {}
-     }
-    }
-    ```
 
 ### Streaming Support
 
-For clients and remote agents capable of communicating over HTTP with Server-Sent Events (SSE), clients can send the RPC request with method `tasks/sendSubscribe` when creating a new Task. The remote agent can respond with a stream of `TaskStatusUpdateEvents` (to communicate status changes or instructions/requests) and `TaskArtifactUpdateEvents` (to stream generated results).
+For clients and remote agents capable of communicating over HTTP with Server-Sent Events (SSE), clients can send the RPC request with method `message/stream` with the content. The remote agent can respond with either a single Message and end the stream, or a Task object with a stream of `TaskStatusUpdateEvents` (to communicate status changes or instructions/requests) and `TaskArtifactUpdateEvents` (to stream generated results).
 
 Note that `TaskArtifactUpdateEvents` can append new parts to existing Artifacts. Clients can use `tasks/get` to retrieve the entire Artifact outside of the streaming context. Agents must set the `final: true` attribute at the end of the stream or if the agent is interrupted and requires additional user input.
 
 === "Request"
 
-    ```json
-    {
-     "method": "tasks/sendSubscribe",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "message": {
-       "role": "user",
-       "parts": [
-        {
-         "type": "text",
-         "text": "write a long paper describing the attached pictures"
-        },
-        {
-         "type": "file",
-         "file": {
-          "mimeType": "image/png",
-          "data": "<base64-encoded-content>"
-         }
-        }
-       ]
-      },
-      "metadata": {}
-     }
+```json
+{
+  "method": "message/stream",
+  "params": {
+    "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "write a long paper describing the attached pictures"
+        },
+        {
+          "type": "file",
+          "file": {
+            "mimeType": "image/png",
+            "data": "<base64-encoded-content>"
+          }
+        }
+      ],
+      "messageId": "bbb7dee1-cf5c-4683-8a6f-4114529da5eb"
+    },
+    "metadata": {}
+  }
+}
+```
+
+**Response (SSE Stream):**
+
+```json
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "status": {
+      "state": "submitted",
+      "timestamp":"2025-04-02T16:59:25.331844"
+    },
+    "history": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "write a long paper describing the attached pictures"
+          },
+          {
+            "type": "file",
+            "file": {
+              "mimeType": "image/png",
+              "data": "<base64-encoded-content>"
+            }
+          }
+        ],
+        "messageId": "bbb7dee1-cf5c-4683-8a6f-4114529da5eb",
+        "taskId": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+        "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1"
+      }
+    ]
+  }
+}
+
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "artifact": {
+      "parts": [
+        {"type":"text", "text": "<section 1...>"}
+      ],
+      "index": 0,
+      "append": false,
+      "lastChunk": false
     }
     ```
 
-=== "Response (SSE Stream)"
-
-    ```json
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "status": {
-       "state": "working",
-       "timestamp":"2025-04-02T16:59:25.331844"
-      },
-      "final": false
-     }
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "artifact": {
+      "parts": [
+        {"type":"text", "text": "<section 2...>"}
+      ],
+      "index": 0,
+      "append": true,
+      "lastChunk": false
     }
 
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "artifact": {
-       "parts": [
-        {"type":"text", "text": "<section 1...>"}
-       ],
-       "index": 0,
-       "append": false,
-       "lastChunk": false
-      }
-     }
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "artifact": {
+      "parts": [
+        {"type":"text", "text": "<section 3...>"}
+      ],
+      "index": 0,
+      "append": true,
+      "lastChunk": true
     }
 
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "artifact": {
-       "parts": [
-        {"type":"text", "text": "<section 2...>"}
-       ],
-       "index": 0,
-       "append": true,
-       "lastChunk": false
-      }
-     }
-    }
-
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": 1,
-      "artifact": {
-       "parts": [
-        {"type":"text", "text": "<section 3...>"}
-       ],
-       "index": 0,
-       "append": true,
-       "lastChunk": true
-      }
-     }
-    }
-
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": 1,
-      "status": {
-       "state": "completed",
-       "timestamp":"2025-04-02T16:59:35.331844"
-      },
-      "final": true
-     }
-    }
-    ```
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "status": {
+      "state": "completed",
+      "timestamp":"2025-04-02T16:59:35.331844"
+    },
+    "final": true
+  }
+}
+```
 
 #### Resubscribe to Task
 
@@ -524,72 +665,102 @@ A disconnected client may resubscribe to a remote agent that supports streaming 
 
 === "Request"
 
-    ```json
-    {
-     "method": "tasks/resubscribe",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "metadata": {}
-     }
+```json
+{
+  "method": "tasks/resubscribe",
+  "params": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "metadata": {}
+  }
+}
+```
+
+**Response (SSE Stream):**
+
+```json
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "artifact": {
+      "parts": [
+        {"type":"text", "text": "<section 2...>"}
+      ],
+      "index": 0,
+      "append": true,
+      "lastChunk":false
     }
     ```
 
-=== "Response (SSE Stream)"
-
-    ```json
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "artifact": {
-       "parts": [
-        {"type":"text", "text": "<section 2...>"}
-       ],
-       "index": 0,
-       "append": true,
-       "lastChunk":false
-      }
-     }
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "artifact": {
+      "parts": [
+        {"type":"text", "text": "<section 3...>"}
+      ],
+      "index": 0,
+      "append": true,
+      "lastChunk": true
     }
 
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "artifact": {
-       "parts": [
-        {"type":"text", "text": "<section 3...>"}
-       ],
-       "index": 0,
-       "append": true,
-       "lastChunk": true
-      }
-     }
-    }
-
-    data: {
-     "jsonrpc": "2.0",
-     "id": 1,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "status": {
-       "state": "completed",
-       "timestamp":"2025-04-02T16:59:35.331844"
-      },
-      "final": true
-     }
-    }
-    ```
+data: {
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "id": "225d6247-06ba-4cda-a08b-33ae35c8dcfa",
+    "contextId": "05217e44-7e9f-473e-ab4f-2c2dde50a2b1",
+    "status": {
+      "state": "completed",
+      "timestamp":"2025-04-02T16:59:35.331844"
+    },
+    "final": true
+  }
+}
+```
 
 ### Non-textual Media
 
-The following example demonstrates an interaction between a client and an agent involving non-textual data (a PDF file).
+The following example demonstrates an interaction between a client and an agent involving non-textual data (a PDF file). This example uses polling by the client to get updates.
 
 **Interaction 1: Send File and Acknowledgment**
 
-=== "Request (Sequence 1 - Send File)"
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "message/send",
+  "params": {
+    "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Analyze the attached report and generate high level overview"
+        },
+        {
+          "type": "file",
+          "file": {
+            "mimeType": "application/pdf",
+            "data": "<base64-encoded-content>"
+          }
+        }
+      ],
+      "messageId": "6dbc13b5-bd57-4c2b-b503-24e381b6c8d6"
+    },
+    "configuration": {
+      "blocking": False
+    },
+    "metadata": {}
+  }
+}
+```
 
     ```json
     {
@@ -620,7 +791,54 @@ The following example demonstrates an interaction between a client and an agent 
     }
     ```
 
-=== "Response (Sequence 2 - Acknowledgment/Working)"
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "result": {
+    "id": "43667960-d455-4453-b0cf-1bae4955270d",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "working",
+      "message": {
+        "role": "agent",
+        "parts": [
+          {
+            "type": "text",
+            "text": "analysis in progress, please wait"
+          }
+        ],
+        "messageId": "bf9e5948-9b57-4324-910a-d8cd90df0dba",
+        "taskId": "43667960-d455-4453-b0cf-1bae4955270d",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+        "metadata": {}
+      }
+    },
+    "history": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Analyze the attached report and generate high level overview"
+          },
+          {
+            "type": "file",
+            "file": {
+              "mimeType": "application/pdf",
+              "data": "<base64-encoded-content>"
+            }
+          }
+        ],
+        "messageId": "6dbc13b5-bd57-4c2b-b503-24e381b6c8d6",
+        "taskId": "43667960-d455-4453-b0cf-1bae4955270d",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      }
+    ],
+    "metadata": {}
+  }
+}
+```
 
     ```json
     {
@@ -647,49 +865,78 @@ The following example demonstrates an interaction between a client and an agent 
     }
     ```
 
-**Interaction 2: Get Result and Completion**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tasks/get",
+  "params": {
+    "id": "43667960-d455-4453-b0cf-1bae4955270d",
+    "metadata": {}
+  }
+}
+```
 
 === "Request (Sequence 3 - Get Result)"
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 10,
-     "method": "tasks/get",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "metadata": {}
-     }
-    }
-    ```
-
-=== "Response (Sequence 4 - Completed with Analysis)"
-
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 9,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "status": {
-       "state": "completed"
-      },
-      "artifacts": [
-       {
-        "parts": [
-         {
-          "type": "text",
-          "text": "<generated analysis content>"
-         }
-        ],
-        "metadata": {}
-       }
-      ],
-      "metadata": {}
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "result": {
+    "id": "43667960-d455-4453-b0cf-1bae4955270d",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "completed"
+    },
+    "artifacts": [
+      {
+        "parts": [
+          {
+            "type": "text",
+            "text": "<generated analysis content>"
+          }
+        ],
+        "metadata": {}
+      }
+    ],
+    "history": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Analyze the attached report and generate high level overview"
+          },
+          {
+            "type": "file",
+            "file": {
+              "mimeType": "application/pdf",
+              "data": "<base64-encoded-content>"
+            }
+          }
+        ],
+        "messageId": "6dbc13b5-bd57-4c2b-b503-24e381b6c8d6",
+        "taskId": "43667960-d455-4453-b0cf-1bae4955270d",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      },
+      {
+        "role": "agent",
+        "parts": [
+          {
+            "type": "text",
+            "text": "analysis in progress, please wait"
+          }
+        ],
+        "messageId": "bf9e5948-9b57-4324-910a-d8cd90df0dba",
+        "taskId": "43667960-d455-4453-b0cf-1bae4955270d",
+        "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4"
+      }
+    ],
+    "metadata": {}
+  }
+}
+```
 
 ### Structured Output
 
@@ -697,68 +944,68 @@ Both the client and the agent can request structured output from the other party
 
 === "Request (Requesting JSON Output)"
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 9,
-     "method": "tasks/send",
-     "params": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "message": {
-       "role": "user",
-       "parts": [
-        {
-         "type": "text",
-         "text": "Show me a list of my open IT tickets",
-         "metadata": {
-          "mimeType": "application/json",
-          "schema": {
-           "type": "array",
-           "items": {
-            "type": "object",
-            "properties": {
-             "ticketNumber": { "type": "string" },
-             "description": { "type": "string" }
-            }
-           }
-          }
-         }
-        }
-       ]
-      },
-      "metadata": {}
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "message/send",
+  "params": {
+    "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
+    "message": {
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Show me a list of my open IT tickets",
+          "metadata": {
+            "mimeType": "application/json",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "ticketNumber": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "messageId": "85b26db5-ffbb-4278-a5da-a7b09dea1b47"
+    },
+    "metadata": {}
+  }
+}
+```
 
 === "Response (Providing JSON Output)"
 
-    ```json
-    {
-     "jsonrpc": "2.0",
-     "id": 9,
-     "result": {
-      "id": "de38c76d-d54c-436c-8b9f-4c2703648d64",
-      "sessionId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
-      "status": {
-       "state": "completed",
-       "timestamp": "2025-04-17T17:47:09.680794"
-      },
-      "artifacts": [
-       {
-        "parts": [
-         {
-          "type": "text",
-          "text": "[{\"ticketNumber\":\"REQ12312\",\"description\":\"request for VPN access\"},{\"ticketNumber\":\"REQ23422\",\"description\":\"Add to DL - team-gcp-onboarding\"}]"
-         }
-        ],
-        "index": 0
-       }
-      ]
-     }
-    }
-    ```
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "result": {
+    "id": "d8c6243f-5f7a-4f6f-821d-957ce51e856c",
+    "contextId": "c295ea44-7543-4f78-b524-7a38915ad6e4",
+    "status": {
+      "state": "completed",
+      "timestamp": "2025-04-17T17:47:09.680794"
+    },
+    "artifacts": [
+      {
+        "parts": [
+          {
+            "type": "text",
+            "text": "[{\"ticketNumber\":\"REQ12312\",\"description\":\"request for VPN access\"},{\"ticketNumber\":\"REQ23422\",\"description\":\"Add to DL - team-gcp-onboarding\"}]"
+          }
+        ],
+        "index": 0
+      }
+    ]
+  }
+}
+```
 
 ### Error Handling
 
@@ -774,16 +1021,16 @@ interface ErrorMessage {
 
 The following are the standard JSON-RPC error codes that the server can respond with for error scenarios:
 
-| Error Code           | Message                          | Description                                            |
-| :------------------- | :------------------------------- | :----------------------------------------------------- |
-| `-32700`             | JSON parse error                 | Invalid JSON was sent                                  |
-| `-32600`             | Invalid Request                  | Request payload validation error                       |
-| `-32601`             | Method not found                 | Not a valid method                                     |
-| `-32602`             | Invalid params                   | Invalid method parameters                              |
-| `-32603`             | Internal error                   | Internal JSON-RPC error                                |
-| `-32000` to `-32099` | Server error                     | Reserved for implementation specific error codes       |
-| `-32001`             | Task not found                   | Task not found with the provided id                    |
-| `-32002`             | Task cannot be canceled          | Task cannot be canceled by the remote agent            |
-| `-32003`             | Push notifications not supported | Push Notification is not supported by the agent        |
-| `-32004`             | Unsupported operation            | Operation is not supported                             |
-| `-32005`             | Incompatible content types       | Incompatible content types between client and an agent |
+| Error Code           | Message                          | Description                                            |
+|:---------------------|:---------------------------------|:-------------------------------------------------------|
+| `-32700`             | JSON parse error                 | Invalid JSON was sent                                  |
+| `-32600`             | Invalid Request                  | Request payload validation error                       |
+| `-32601`             | Method not found                 | Not a valid method                                     |
+| `-32602`             | Invalid params                   | Invalid method parameters                              |
+| `-32603`             | Internal error                   | Internal JSON-RPC error                                |
+| `-32000` to `-32099` | Server error                     | Reserved for implementation specific error codes       |
+| `-32001`             | Task not found                   | Task not found with the provided id                    |
+| `-32002`             | Task cannot be canceled          | Task cannot be canceled by the remote agent            |
+| `-32003`             | Push notifications not supported | Push Notification is not supported by the agent        |
+| `-32004`             | Unsupported operation            | Operation is not supported                             |
+| `-32005`             | Incompatible content types       | Incompatible content types between client and an agent |

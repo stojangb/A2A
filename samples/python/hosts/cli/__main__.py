@@ -7,8 +7,14 @@ from uuid import uuid4
 
 import asyncclick as click
 
-from common.client import A2ACardResolver, A2AClient
-from common.types import TaskState
+from common.client import A2AClient, A2ACardResolver
+from common.types import (
+    TaskState,
+    Task,
+    Message,
+    TaskStatusUpdateEvent,
+    TaskArtifactUpdateEvent,
+)
 from common.utils.push_notification_auth import PushNotificationReceiverAuth
 
 
@@ -53,25 +59,20 @@ async def cli(
         push_notification_listener.start()
 
     client = A2AClient(agent_card=card)
-    if session == 0:
-        sessionId = uuid4().hex
-    else:
-        sessionId = session
 
     continue_loop = True
     streaming = card.capabilities.streaming
 
     while continue_loop:
-        taskId = uuid4().hex
         print('=========  starting a new task ======== ')
-        continue_loop = await completeTask(
+        continue_loop, contextId, taskId = await completeTask(
             client,
             streaming,
             use_push_notifications,
             notification_receiver_host,
             notification_receiver_port,
-            taskId,
-            sessionId,
+            None,
+            None,
         )
 
         if history and continue_loop:
@@ -93,13 +94,13 @@ async def completeTask(
     notification_receiver_host: str,
     notification_receiver_port: int,
     taskId,
-    sessionId,
+    contextId,
 ):
     prompt = click.prompt(
         '\nWhat do you want to send to the agent? (:q or quit to exit)'
     )
     if prompt == ':q' or prompt == 'quit':
-        return False
+        return False, None, None
 
     message = {
         'role': 'user',
@@ -109,6 +110,9 @@ async def completeTask(
                 'text': prompt,
             }
         ],
+        'messageId': str(uuid4()),
+        'taskId': taskId,
+        'contextId': contextId,
     }
 
     file_path = click.prompt(
@@ -132,10 +136,11 @@ async def completeTask(
         )
 
     payload = {
-        'id': taskId,
-        'sessionId': sessionId,
-        'acceptedOutputModes': ['text'],
+        'id': str(uuid4()),
         'message': message,
+        'configuration': {
+            'acceptedOutputModes': ['text'],
+        },
     }
 
     if use_push_notifications:
@@ -147,31 +152,72 @@ async def completeTask(
         }
 
     taskResult = None
+    message = None
     if streaming:
-        response_stream = client.send_task_streaming(payload)
+        response_stream = client.send_message_stream(payload)
         async for result in response_stream:
+            if result.error:
+                print(
+                    f'\nError sending message {result.model_dump_json(exclude_none=True)}'
+                )
+                continue
+            event = result.result
+            if (
+                isinstance(event, Task)
+                or isinstance(event, TaskStatusUpdateEvent)
+                or isinstance(event, TaskArtifactUpdateEvent)
+            ):
+                taskId = event.id
+                contextId = event.contextId
+            elif isinstance(event, Message):
+                contextId = event.contextId
+                message = event
             print(
                 f'stream event => {result.model_dump_json(exclude_none=True)}'
             )
-        taskResult = await client.get_task({'id': taskId})
+        # Upon completion of the stream. Retrieve the full task if one was made.
+        if taskId:
+            taskResult = await client.get_task({'id': taskId})
     else:
-        taskResult = await client.send_task(payload)
-        print(f'\n{taskResult.model_dump_json(exclude_none=True)}')
+        # For non-streaming, assume the response is a task or message.
+        result = await client.send_message(payload)
+        if result.error:
+            print(
+                f'\nError sending message {result.model_dump_json(exclude_none=True)}'
+            )
+        if isinstance(result.result, Task):
+            taskId = result.id
+            contextId = result.contextId
+            taskResult = result
+        elif isinstance(result.result, Message):
+            contextId = result.result.contextId
+            message = result.result
 
-    ## if the result is that more input is required, loop again.
-    state = TaskState(taskResult.result.status.state)
-    if state.name == TaskState.INPUT_REQUIRED.name:
-        return await completeTask(
-            client,
-            streaming,
-            use_push_notifications,
-            notification_receiver_host,
-            notification_receiver_port,
-            taskId,
-            sessionId,
-        )
-    ## task is complete
-    return True
+    if message:
+        print(f'\n{message.model_dump_json(exclude_none=True)}')
+        return True, contextId, taskId
+    if taskResult:
+        print(f'\n{taskResult.model_dump_json(exclude_none=True)}')
+        ## if the result is that more input is required, loop again.
+        state = TaskState(taskResult.result.status.state)
+        if state.name == TaskState.INPUT_REQUIRED.name:
+            return (
+                await completeTask(
+                    client,
+                    streaming,
+                    use_push_notifications,
+                    notification_receiver_host,
+                    notification_receiver_port,
+                    taskId,
+                    contextId,
+                ),
+                contextId,
+                taskId,
+            )
+        ## task is complete
+        return True, contextId, taskId
+    ## Failure case, shouldn't reach
+    return True, contextId, taskId
 
 
 if __name__ == '__main__':

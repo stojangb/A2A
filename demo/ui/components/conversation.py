@@ -1,7 +1,15 @@
-import uuid
-
 import mesop as me
 
+import uuid
+
+from state.state import AppState, SettingsState, StateMessage
+from state.host_agent_service import (
+    SendMessage,
+    ListConversations,
+    convert_message_to_state,
+)
+from .chat_bubble import chat_bubble
+from .form_render import is_form, render_form, form_sent
 from common.types import Message, TextPart
 from state.host_agent_service import (
     ListConversations,
@@ -31,7 +39,6 @@ def on_blur(e: me.InputBlurEvent):
 async def send_message(message: str, message_id: str = ''):
     state = me.state(PageState)
     app_state = me.state(AppState)
-    settings_state = me.state(SettingsState)
     c = next(
         (
             x
@@ -43,13 +50,10 @@ async def send_message(message: str, message_id: str = ''):
     if not c:
         print('Conversation id ', state.conversation_id, ' not found')
     request = Message(
-        id=message_id,
+        messageId=message_id,
+        contextId=state.conversation_id,
         role='user',
         parts=[TextPart(text=message)],
-        metadata={
-            'conversation_id': c.conversation_id if c else '',
-            'conversation_name': c.name if c else '',
-        },
     )
     # Add message to state until refresh replaces it.
     state_message = convert_message_to_state(request)
@@ -65,7 +69,7 @@ async def send_message(message: str, message_id: str = ''):
     )
     if conversation:
         conversation.message_ids.append(state_message.message_id)
-    response = await SendMessage(request)
+    await SendMessage(request)
 
 
 async def send_message_enter(e: me.InputEnterEvent):  # pylint: disable=unused-argument

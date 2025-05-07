@@ -8,7 +8,6 @@ import aiohttp
 
 from dotenv import load_dotenv
 
-
 # from flat_ai import FlatAI
 
 # Load environment variables from .env file

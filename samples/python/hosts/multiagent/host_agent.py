@@ -1,17 +1,27 @@
-import base64
 import json
 import uuid
+from typing import List
 
+from google.genai import types
+import base64
+
+from google.adk import Agent
+from google.adk.agents.readonly_context import ReadonlyContext
+from google.adk.agents.callback_context import CallbackContext
+from google.adk.tools.tool_context import ToolContext
+from .remote_agent_connection import RemoteAgentConnections, TaskUpdateCallback
 from common.client import A2ACardResolver
 from common.types import (
     AgentCard,
     DataPart,
     Message,
-    Part,
-    Task,
-    TaskSendParams,
+    MessageSendConfiguration,
     TaskState,
+    Task,
     TextPart,
+    DataPart,
+    Part,
+    MessageSendParams,
 )
 from google.adk import Agent
 from google.adk.agents.callback_context import CallbackContext
@@ -69,7 +79,7 @@ class HostAgent:
             ),
             tools=[
                 self.list_remote_agents,
-                self.send_task,
+                self.send_message,
             ],
         )
 
@@ -83,16 +93,12 @@ Discovery:
 can use to delegate the task.
 
 Execution:
-- For actionable tasks, you can use `create_task` to assign tasks to remote agents to perform.
-Be sure to include the remote agent name when you respond to the user.
+- For actionable requests, you can use `send_message` to interact with remote agents to take action.
 
-You can use `check_pending_task_states` to check the states of the pending
-tasks.
+Be sure to include the remote agent name when you respond to the user.
 
 Please rely on tools to address the request, and don't make up the response. If you are not sure, please ask the user for more details.
 Focus on the most recent parts of the conversation primarily.
-
-If there is an active agent, send the request to that agent with the update task tool.
 
 Agents:
 {self.agents}
@@ -103,7 +109,7 @@ Current agent: {current_agent['active_agent']}
     def check_state(self, context: ReadonlyContext):
         state = context.state
         if (
-            'session_id' in state
+            'context_id' in state
             and 'session_active' in state
             and state['session_active']
             and 'agent' in state
@@ -116,8 +122,6 @@ Current agent: {current_agent['active_agent']}
     ):
         state = callback_context.state
         if 'session_active' not in state or not state['session_active']:
-            if 'session_id' not in state:
-                state['session_id'] = str(uuid.uuid4())
             state['session_active'] = True
 
     def list_remote_agents(self):
@@ -132,7 +136,7 @@ Current agent: {current_agent['active_agent']}
             )
         return remote_agent_info
 
-    async def send_task(
+    async def send_message(
         self, agent_name: str, message: str, tool_context: ToolContext
     ):
         """Sends a task either streaming (if supported) or non-streaming.
@@ -151,38 +155,32 @@ Current agent: {current_agent['active_agent']}
             raise ValueError(f'Agent {agent_name} not found')
         state = tool_context.state
         state['agent'] = agent_name
-        card = self.cards[agent_name]
         client = self.remote_agent_connections[agent_name]
         if not client:
             raise ValueError(f'Client not available for {agent_name}')
-        if 'task_id' in state:
-            taskId = state['task_id']
-        else:
-            taskId = str(uuid.uuid4())
-        sessionId = state['session_id']
+        taskId = state.get('task_id', None)
+        contextId = state.get('context_id', None)
+        messageId = state.get('message_id', None)
         task: Task
-        messageId = ''
-        metadata = {}
-        if 'input_message_metadata' in state:
-            metadata.update(**state['input_message_metadata'])
-            if 'message_id' in state['input_message_metadata']:
-                messageId = state['input_message_metadata']['message_id']
         if not messageId:
             messageId = str(uuid.uuid4())
-        metadata.update(conversation_id=sessionId, message_id=messageId)
-        request: TaskSendParams = TaskSendParams(
-            id=taskId,
-            sessionId=sessionId,
+        request: MessageSendParams = MessageSendParams(
+            id=str(uuid.uuid4()),
             message=Message(
                 role='user',
                 parts=[TextPart(text=message)],
-                metadata=metadata,
+                messageId=messageId,
+                contextId=contextId,
+                taskId=taskId,
             ),
-            acceptedOutputModes=['text', 'text/plain', 'image/png'],
-            # pushNotification=None,
-            metadata={'conversation_id': sessionId},
+            configuration=MessageSendConfiguration(
+                acceptedOutputModes=['text', 'text/plain', 'image/png'],
+            ),
         )
-        task = await client.send_task(request, self.task_callback)
+        response = await client.send_message(request, self.task_callback)
+        if isinstance(response, Message):
+            return convert_parts(task.parts, tool_context)
+        task: Task = response
         # Assume completion unless a state returns that isn't complete
         state['session_active'] = task.status.state not in [
             TaskState.COMPLETED,
@@ -190,6 +188,9 @@ Current agent: {current_agent['active_agent']}
             TaskState.FAILED,
             TaskState.UNKNOWN,
         ]
+        if task.contextId:
+            state['context_id'] = task.contextId
+        state['task_id'] = task.id
         if task.status.state == TaskState.INPUT_REQUIRED:
             # Force user input back
             tool_context.actions.skip_summarization = True
@@ -222,9 +223,9 @@ def convert_parts(parts: list[Part], tool_context: ToolContext):
 def convert_part(part: Part, tool_context: ToolContext):
     if part.type == 'text':
         return part.text
-    if part.type == 'data':
+    elif part.type == 'data':
         return part.data
-    if part.type == 'file':
+    elif part.type == 'file':
         # Repackage A2A FilePart to google.genai Blob
         # Currently not considering plain text as files
         file_id = part.file.name

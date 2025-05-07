@@ -9,22 +9,26 @@ from httpx._types import TimeoutTypes
 from httpx_sse import connect_sse
 
 from common.types import (
-    A2AClientHTTPError,
-    A2AClientJSONError,
     AgentCard,
-    CancelTaskRequest,
-    CancelTaskResponse,
-    GetTaskPushNotificationRequest,
-    GetTaskPushNotificationResponse,
     GetTaskRequest,
-    GetTaskResponse,
+    SendTaskRequest,  # deprecated
+    SendTaskResponse,  # deprecated
     JSONRPCRequest,
-    SendTaskRequest,
-    SendTaskResponse,
-    SendTaskStreamingRequest,
-    SendTaskStreamingResponse,
+    GetTaskResponse,
+    CancelTaskResponse,
+    CancelTaskRequest,
     SetTaskPushNotificationRequest,
     SetTaskPushNotificationResponse,
+    GetTaskPushNotificationRequest,
+    GetTaskPushNotificationResponse,
+    A2AClientHTTPError,
+    A2AClientJSONError,
+    SendTaskStreamingRequest,  # deprecated
+    SendTaskStreamingResponse,  # deprecated
+    SendMessageRequest,
+    SendMessageResponse,
+    SendMessageStreamRequest,
+    SendMessageStreamResponse,
 )
 
 
@@ -35,6 +39,7 @@ class A2AClient:
         url: str = None,
         timeout: TimeoutTypes = 60.0,
     ):
+        self.timeout = timeout
         if agent_card:
             self.url = agent_card.url
         elif url:
@@ -43,10 +48,18 @@ class A2AClient:
             raise ValueError('Must provide either agent_card or url')
         self.timeout = timeout
 
+    # deprecated
     async def send_task(self, payload: dict[str, Any]) -> SendTaskResponse:
         request = SendTaskRequest(params=payload)
         return SendTaskResponse(**await self._send_request(request))
 
+    async def send_message(
+        self, payload: dict[str, Any]
+    ) -> SendMessageResponse:
+        request = SendMessageRequest(params=payload)
+        return SendMessageResponse(**await self._send_request(request))
+
+    # deprecated
     async def send_task_streaming(
         self, payload: dict[str, Any]
     ) -> AsyncIterable[SendTaskStreamingResponse]:
@@ -58,6 +71,22 @@ class A2AClient:
                 try:
                     for sse in event_source.iter_sse():
                         yield SendTaskStreamingResponse(**json.loads(sse.data))
+                except json.JSONDecodeError as e:
+                    raise A2AClientJSONError(str(e)) from e
+                except httpx.RequestError as e:
+                    raise A2AClientHTTPError(400, str(e)) from e
+
+    async def send_message_stream(
+        self, payload: dict[str, Any]
+    ) -> AsyncIterable[SendMessageStreamResponse]:
+        request = SendMessageStreamRequest(params=payload)
+        with httpx.Client(timeout=None) as client:
+            with connect_sse(
+                client, 'POST', self.url, json=request.model_dump()
+            ) as event_source:
+                try:
+                    for sse in event_source.iter_sse():
+                        yield SendMessageStreamResponse(**json.loads(sse.data))
                 except json.JSONDecodeError as e:
                     raise A2AClientJSONError(str(e)) from e
                 except httpx.RequestError as e:

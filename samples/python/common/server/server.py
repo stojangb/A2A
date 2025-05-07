@@ -20,13 +20,23 @@ from common.types import (
     InternalError,
     InvalidRequestError,
     JSONParseError,
-    JSONRPCResponse,
-    SendTaskRequest,
-    SendTaskStreamingRequest,
+    GetTaskRequest,
+    CancelTaskRequest,
+    SendTaskRequest,  # deprecated
     SetTaskPushNotificationRequest,
+    GetTaskPushNotificationRequest,
+    InternalError,
+    AgentCard,
     TaskResubscriptionRequest,
+    SendTaskStreamingRequest,  # deprecated
+    SendMessageRequest,
+    SendMessageStreamRequest,
+    JSONRPCResponse,
 )
 
+import logging
+import traceback
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +85,10 @@ class A2AServer:
             if isinstance(json_rpc_request, GetTaskRequest):
                 result = await self.task_manager.on_get_task(json_rpc_request)
             elif isinstance(json_rpc_request, SendTaskRequest):
+                # This is deprecated and will be removed
                 result = await self.task_manager.on_send_task(json_rpc_request)
             elif isinstance(json_rpc_request, SendTaskStreamingRequest):
+                # This is deprecated and will be removed
                 result = await self.task_manager.on_send_task_subscribe(
                     json_rpc_request
                 )
@@ -94,6 +106,14 @@ class A2AServer:
                 )
             elif isinstance(json_rpc_request, TaskResubscriptionRequest):
                 result = await self.task_manager.on_resubscribe_to_task(
+                    json_rpc_request
+                )
+            elif isinstance(json_rpc_request, SendMessageRequest):
+                result = await self.task_manager.on_send_message(
+                    json_rpc_request
+                )
+            elif isinstance(json_rpc_request, SendMessageStreamRequest):
+                result = await self.task_manager.on_send_message_stream(
                     json_rpc_request
                 )
             else:
@@ -115,6 +135,7 @@ class A2AServer:
         else:
             logger.error(f'Unhandled exception: {e}')
             json_rpc_error = InternalError()
+            traceback.print_exc(file=sys.stdout)
 
         response = JSONRPCResponse(id=None, error=json_rpc_error)
         return JSONResponse(
@@ -133,5 +154,6 @@ class A2AServer:
             return EventSourceResponse(event_generator(result))
         if isinstance(result, JSONRPCResponse):
             return JSONResponse(result.model_dump(exclude_none=True))
-        logger.error(f'Unexpected result type: {type(result)}')
-        raise ValueError(f'Unexpected result type: {type(result)}')
+        else:
+            logger.error(f'Unexpected result type: {type(result)}')
+            raise ValueError(f'Unexpected result type: {type(result)}')
