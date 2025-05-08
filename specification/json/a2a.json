@@ -109,13 +109,13 @@
             "$ref": "#/$defs/AgentSkill"
           },
           "title": "Skills",
-          "type": "array",
+          "type": "array"
         },
         "supportsAuthenticatedExtendedCard": {
           "title": "SupportsAuthenticatedExtendedCard",
           "description": "If true, there is an expanded agent card available after authentication",
           "default": false,
-          "type": "array"
+          "type": "boolean"
         }
       },
       "required": [
