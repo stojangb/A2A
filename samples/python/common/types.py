@@ -423,6 +423,7 @@ class AgentCard(BaseModel):
     ) = None
     security: List[dict[str, List[str]]] | None = None
     skills: List[AgentSkill]
+    supportsAuthenticatedExtendedCard: bool = False
 
 
 class A2AClientError(Exception):
