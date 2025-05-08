@@ -109,7 +109,7 @@
             "$ref": "#/$defs/AgentSkill"
           },
           "title": "Skills",
-          "type": "array"
+          "type": "array",
         },
         "supportsAuthenticatedExtendedCard": {
           "title": "SupportsAuthenticatedExtendedCard",
@@ -933,7 +933,7 @@
       ],
       "title": "Part"
     },
-    "SendTaskRequest": {
+    "SendMessageRequest": {
       "properties": {
         "jsonrpc": {
           "const": "2.0",
@@ -953,23 +953,23 @@
           "title": "Id"
         },
         "method": {
-          "const": "tasks/send",
-          "default": "tasks/send",
+          "const": "message/send",
+          "default": "message/send",
           "title": "Method",
           "type": "string"
         },
         "params": {
-          "$ref": "#/$defs/TaskSendParams"
+          "$ref": "#/$defs/MessageSendParams"
         }
       },
       "required": [
         "method",
         "params"
       ],
-      "title": "SendTaskRequest",
+      "title": "SendMessageRequest",
       "type": "object"
     },
-    "SendTaskResponse": {
+    "SendMessageResponse": {
       "properties": {
         "jsonrpc": {
           "const": "2.0",
@@ -989,16 +989,23 @@
           "title": "Id"
         },
         "result": {
-          "$ref": "#/$defs/Task"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Task"
+            },
+            {
+              "$ref": "#/$defs/Message"
+            }
+          ]
         },
         "error": {
           "$ref": "#/$defs/JSONRPCError"
         }
       },
-      "title": "SendTaskResponse",
+      "title": "SendMessageResponse",
       "type": "object"
     },
-    "SendTaskStreamingRequest": {
+    "SendMessageStreamingRequest": {
       "properties": {
         "jsonrpc": {
           "const": "2.0",
@@ -1018,23 +1025,23 @@
           "title": "Id"
         },
         "method": {
-          "const": "tasks/sendSubscribe",
-          "default": "tasks/sendSubscribe",
+          "const": "message/stream",
+          "default": "message/stream",
           "title": "Method",
           "type": "string"
         },
         "params": {
-          "$ref": "#/$defs/TaskSendParams"
+          "$ref": "#/$defs/MessageSendParams"
         }
       },
       "required": [
         "method",
         "params"
       ],
-      "title": "SendTaskStreamingRequest",
+      "title": "SendMessageStreamRequest",
       "type": "object"
     },
-    "SendTaskStreamingResponse": {
+    "SendMessageStreamResponse": {
       "properties": {
         "jsonrpc": {
           "const": "2.0",
@@ -1060,6 +1067,12 @@
             },
             {
               "$ref": "#/$defs/TaskArtifactUpdateEvent"
+            },
+            {
+              "$ref": "#/$defs/Task"
+            },
+            {
+              "$ref": "#/$defs/Message"
             }
           ]
         },
@@ -1067,7 +1080,7 @@
           "$ref": "#/$defs/JSONRPCError"
         }
       },
-      "title": "SendTaskStreamingResponse",
+      "title": "SendMessageStreamResponse",
       "type": "object"
     },
     "SetTaskPushNotificationRequest": {
@@ -1562,7 +1575,7 @@
     "A2ARequest": {
       "oneOf": [
         {
-          "$ref": "#/$defs/SendTaskRequest"
+          "$ref": "#/$defs/SendMessageRequest"
         },
         {
           "$ref": "#/$defs/GetTaskRequest"
