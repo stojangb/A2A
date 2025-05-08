@@ -812,6 +812,7 @@ def test_agent_card(schema, resolver):
         },
         security=[{'apiKey': []}],
         skills=[skill],
+        supportsAuthenticatedExtendedCard=True,
     )
     validate_instance(
         instance.model_dump(mode='json', exclude_none=True),
@@ -826,9 +827,24 @@ def test_agent_card(schema, resolver):
         url='https://agent.example.com',
         capabilities=AgentCapabilities(),  # Use defaults
         skills=[AgentSkill(id='ping', name='Ping')],
+        supportsAuthenticatedExtendedCard=False, # Explicitly false
     )
     validate_instance(
         instance_minimal.model_dump(mode='json', exclude_none=True),
+        'AgentCard',
+        schema,
+        resolver,
+    )
+    # Test with omitted supportsAuthenticatedExtendedCard, should default to false)
+    instance_no_extended_card_entry = AgentCard(
+        name='Default Auth Agent',
+        version='0.2',
+        url='https://agent.example.com/default',
+        capabilities=AgentCapabilities(),
+        skills=[AgentSkill(id='ping', name='Ping')]
+    )
+    validate_instance(
+        instance_no_extended_card_entry.model_dump(mode='json', exclude_none=True),
         'AgentCard',
         schema,
         resolver,
