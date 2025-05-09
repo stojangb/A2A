@@ -25,6 +25,8 @@ from common.types import (
     SendMessageResponse,
     SendMessageStreamRequest,
     SendMessageStreamResponse,
+    GetAuthenticatedExtendedCardRequest,
+    GetAuthenticatedExtendedCardResponse,
 )
 
 
@@ -34,6 +36,7 @@ class A2AClient:
         agent_card: AgentCard = None,
         url: str = None,
         timeout: TimeoutTypes = 60.0,
+        default_headers: dict[str, str] | None = None,
     ):
         self.timeout = timeout
         if agent_card:
@@ -42,7 +45,7 @@ class A2AClient:
             self.url = url
         else:
             raise ValueError('Must provide either agent_card or url')
-        self.timeout = timeout
+        self.default_headers = default_headers or {}
 
     async def send_message(
         self, payload: dict[str, Any]
@@ -54,9 +57,10 @@ class A2AClient:
         self, payload: dict[str, Any]
     ) -> AsyncIterable[SendMessageStreamResponse]:
         request = SendMessageStreamRequest(params=payload)
+        headers = self.default_headers.copy()
         with httpx.Client(timeout=None) as client:
             with connect_sse(
-                client, 'POST', self.url, json=request.model_dump()
+                client, 'POST', self.url, json=request.model_dump(exclude_none=True), headers=headers
             ) as event_source:
                 try:
                     for sse in event_source.iter_sse():
@@ -66,12 +70,16 @@ class A2AClient:
                 except httpx.RequestError as e:
                     raise A2AClientHTTPError(400, str(e)) from e
 
-    async def _send_request(self, request: JSONRPCRequest) -> dict[str, Any]:
+    async def _send_request(self, request: JSONRPCRequest, extra_headers: dict[str, str] | None = None) -> dict[str, Any]:
+        headers = self.default_headers.copy()
+        if extra_headers:
+            headers.update(extra_headers)
+
         async with httpx.AsyncClient() as client:
             try:
                 # Image generation could take time, adding timeout
                 response = await client.post(
-                    self.url, json=request.model_dump(), timeout=self.timeout
+                    self.url, json=request.model_dump(exclude_none=True), timeout=self.timeout, headers=headers
                 )
                 response.raise_for_status()
                 return response.json()
@@ -103,3 +111,10 @@ class A2AClient:
         return GetTaskPushNotificationResponse(
             **await self._send_request(request)
         )
+
+    async def get_authenticated_extended_card(
+        self, auth_headers: dict[str, str] | None = None
+    ) -> GetAuthenticatedExtendedCardResponse:
+        request = GetAuthenticatedExtendedCardRequest()
+        response_data = await self._send_request(request, extra_headers=auth_headers)
+        return GetAuthenticatedExtendedCardResponse(**response_data)

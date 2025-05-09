@@ -30,6 +30,9 @@ from common.types import (
     SendMessageRequest,
     SendMessageStreamRequest,
     JSONRPCResponse,
+    GetAuthenticatedExtendedCardRequest,
+    UnsupportedOperationError,
+    AgentSkill,
 )
 
 import logging
@@ -48,11 +51,16 @@ class A2AServer:
         agent_card: AgentCard = None,
         task_manager: TaskManager = None,
     ):
+        if agent_card is None:
+            raise ValueError('agent_card is not defined')
+        if task_manager is None:
+            raise ValueError('task_manager is not defined')
+
         self.host = host
         self.port = port
         self.endpoint = endpoint
         self.task_manager = task_manager
-        self.agent_card = agent_card
+        self._base_agent_card = agent_card # Store the original agent card
         self.app = Starlette()
         self.app.add_route(
             self.endpoint, self._process_request, methods=['POST']
@@ -62,18 +70,14 @@ class A2AServer:
         )
 
     def start(self):
-        if self.agent_card is None:
-            raise ValueError('agent_card is not defined')
-
-        if self.task_manager is None:
-            raise ValueError('request_handler is not defined')
-
         import uvicorn
 
         uvicorn.run(self.app, host=self.host, port=self.port)
 
     def _get_agent_card(self, request: Request) -> JSONResponse:
-        return JSONResponse(self.agent_card.model_dump(exclude_none=True))
+        # logger.info(f"Serving agent card: {self._base_agent_card.model_dump(exclude_none=True)}")
+        # logger.info(f"supportsAuthenticatedExtendedCard on server: {self._base_agent_card.supportsAuthenticatedExtendedCard}")
+        return JSONResponse(self._base_agent_card.model_dump(exclude_none=True))
 
     async def _process_request(self, request: Request):
         try:
@@ -105,6 +109,10 @@ class A2AServer:
             elif isinstance(json_rpc_request, SendMessageStreamRequest):
                 result = await self.task_manager.on_send_message_stream(
                     json_rpc_request
+                )
+            elif isinstance(json_rpc_request, GetAuthenticatedExtendedCardRequest):
+                result = await self.task_manager.on_get_authenticated_extended_card(
+                    request, json_rpc_request, self._base_agent_card
                 )
             else:
                 logger.warning(
