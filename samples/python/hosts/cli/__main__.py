@@ -36,6 +36,25 @@ async def cli(
 
     print('======= Agent Card ========')
     print(card.model_dump_json(exclude_none=True))
+    print('===========================')
+
+    client = A2AClient(agent_card=card)
+
+    if card.supportsAuthenticatedExtendedCard:
+        print('\nAgent supports authenticated extended card. Fetching...')
+
+		# Hardcoded api key.
+        auth_headers = {"Authorization": "Apikey SecureToken123"}
+        try:
+            extended_card_response = await client.get_authenticated_extended_card(auth_headers=auth_headers)
+            if extended_card_response.result:
+                print('======= Authenticated Extended Agent Card ========')
+                print(extended_card_response.result.model_dump_json(exclude_none=True))
+                print('================================================')
+            elif extended_card_response.error:
+                print(f'Error fetching extended card: {extended_card_response.error.model_dump_json(exclude_none=True)}')
+        except Exception as e:
+            print(f'Exception while fetching extended card: {e}')
 
     notif_receiver_parsed = urllib.parse.urlparse(push_notification_receiver)
     notification_receiver_host = notif_receiver_parsed.hostname
@@ -57,8 +76,6 @@ async def cli(
             notification_receiver_auth=notification_receiver_auth,
         )
         push_notification_listener.start()
-
-    client = A2AClient(agent_card=card)
 
     continue_loop = True
     streaming = card.capabilities.streaming

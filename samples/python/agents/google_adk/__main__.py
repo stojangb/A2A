@@ -63,6 +63,7 @@ def main(host, port):
             defaultOutputModes=ReimbursementAgent.SUPPORTED_CONTENT_TYPES,
             capabilities=capabilities,
             skills=[skill],
+            supportsAuthenticatedExtendedCard=True, # Explicitly set to true
         )
         server = A2AServer(
             agent_card=agent_card,

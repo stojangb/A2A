@@ -22,10 +22,16 @@ from common.types import (
     SendMessageStreamRequest,
     SendMessageStreamResponse,
     MessageSendParams,
+    GetAuthenticatedExtendedCardRequest,
+    GetAuthenticatedExtendedCardResponse,
+    InvalidRequestError,
+    AgentSkill,
+    UnsupportedOperationError,
 )
 from google.genai import types
 from typing import Union
 import logging
+from starlette.requests import Request
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -301,3 +307,49 @@ class AgentTaskManager(InMemoryTaskManager):
             else [],
         )
         return SendMessageResponse(id=request.id, result=task)
+
+    async def on_get_authenticated_extended_card(
+        self, http_request: Request, rpc_request: GetAuthenticatedExtendedCardRequest, base_agent_card: "AgentCard" # type: ignore
+    ) -> GetAuthenticatedExtendedCardResponse:
+        logger.info(f'AgentTaskManager: Handling GetAuthenticatedExtendedCard request: {rpc_request.id}')
+
+        auth_header = http_request.headers.get("Authorization")
+        # Example auth."'Authorization: Apikey SecureToken123'. (in real world, client uses the securitySchemes returned from the public agent card) "
+        if not auth_header or not auth_header.startswith("Apikey ") or auth_header.split(" ")[1] != "SecureToken123":
+            logger.warning(f"AgentTaskManager: Authentication failed for GetAuthenticatedExtendedCardRequest (id: {rpc_request.id}): Invalid or missing Authorization header.")
+            return GetAuthenticatedExtendedCardResponse(
+                id=rpc_request.id,
+                error=InvalidRequestError(message="Authentication required or failed for this agent.")
+            )
+        logger.info(f"AgentTaskManager: Authentication successful for GetAuthenticatedExtendedCardRequest (id: {rpc_request.id}).")
+
+        # Check if base agent card says we can have the extended card.
+        if not base_agent_card.supportsAuthenticatedExtendedCard:
+            logger.warning(f"AgentTaskManager: Base agent card does not support authenticated extended card.")
+            return GetAuthenticatedExtendedCardResponse(
+                id=rpc_request.id,
+                error=UnsupportedOperationError(message="Agent does not support authenticated extended card.")
+            )
+
+        # Create a deep copy of the base agent card to modify it
+        extended_card = base_agent_card.model_copy(deep=True)
+
+        # Modify description
+        if extended_card.description:
+            extended_card.description += " (ADK Authenticated & Extended View)"
+        else:
+            extended_card.description = "This is the ADK authenticated and extended agent card view, with specialized ADK skills."
+
+        # Add some "exclusive" skills
+        if extended_card.skills is None:
+            extended_card.skills = [] # Should not happen if base_agent_card is valid
+        
+        extended_card.skills.append(
+            AgentSkill(id='adk_reimbursement_advanced_tool', name='ADK Advanced Reimbursement Tool', description='Provides advanced options for reimbursement, available only to authenticated ADK users.')
+        )
+        extended_card.skills.append(
+            AgentSkill(id='adk_reporting_feature', name='ADK Secure Reporting', description='Generates secure financial reports, an ADK authenticated feature.')
+        )
+        
+        logger.info(f"AgentTaskManager: Returning ADK-specific extended agent card for request: {rpc_request.id}")
+        return GetAuthenticatedExtendedCardResponse(id=rpc_request.id, result=extended_card)
