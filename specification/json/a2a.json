@@ -546,6 +546,81 @@
       "title": "GetTaskResponse",
       "type": "object"
     },
+    "GetAuthenticatedExtendedCardRequest": {
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0",
+          "default": "2.0",
+          "title": "Jsonrpc",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Id"
+        },
+        "method": {
+          "const": "agent/getAuthenticatedExtendedCard",
+          "default": "agent/getAuthenticatedExtendedCard",
+          "title": "Method",
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "title": "Params",
+          "description": "Parameters for getting the authenticated extended agent card. Authentication is expected to be handled based on the agent's securitySchemes. This object is currently empty but reserved for future extensions.",
+          "properties": {},
+          "additionalProperties": false,
+          "default": {}
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "method",
+        "params"
+      ],
+      "title": "GetAuthenticatedExtendedCardRequest",
+      "type": "object"
+    },
+    "GetAuthenticatedExtendedCardResponse": {
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0",
+          "default": "2.0",
+          "title": "Jsonrpc",
+          "type": "string"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Id"
+        },
+        "result": {
+          "$ref": "#/$defs/AgentCard"
+        },
+        "error": {
+          "$ref": "#/$defs/JSONRPCError"
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id"
+      ],
+      "title": "GetAuthenticatedExtendedCardResponse",
+      "type": "object"
+    },
     "InternalError": {
       "properties": {
         "code": {

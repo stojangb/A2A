@@ -30,11 +30,17 @@ from common.types import (
     TaskPushNotificationConfig,
     InternalError,
     Message,
+    GetAuthenticatedExtendedCardRequest,
+    GetAuthenticatedExtendedCardResponse,
+    UnsupportedOperationError,
+    InvalidRequestError,
+    AgentSkill,
     TextPart,
     InvalidParamsError,
 )
 import common.server.utils as utils
 import asyncio
+from starlette.requests import Request
 import logging
 import uuid
 
@@ -80,6 +86,12 @@ class TaskManager(ABC):
     async def on_resubscribe_to_task(
         self, request: TaskResubscriptionRequest
     ) -> AsyncIterable[SendMessageStreamResponse] | JSONRPCResponse:
+        pass
+
+    @abstractmethod
+    async def on_get_authenticated_extended_card(
+        self, http_request: Request, rpc_request: GetAuthenticatedExtendedCardRequest, base_agent_card: "AgentCard" # type: ignore
+    ) -> GetAuthenticatedExtendedCardResponse:
         pass
 
 
@@ -355,7 +367,25 @@ class InMemoryTaskManager(TaskManager):
                 acceptedOutputModes,
                 supportedTypes,
             )
-            return utils.new_incompatible_types_error(request.id)
+
+    async def on_get_authenticated_extended_card(
+        self, http_request: Request, rpc_request: GetAuthenticatedExtendedCardRequest, base_agent_card: "AgentCard" # type: ignore
+    ) -> GetAuthenticatedExtendedCardResponse:
+        # This base implementation in InMemoryTaskManager assumes authentication has been handled by a subclass or is not required.
+        logger.info(f'InMemoryTaskManager: Handling GetAuthenticatedExtendedCard request: {rpc_request.id}')
+
+        if not base_agent_card.supportsAuthenticatedExtendedCard:
+            logger.warning(f"InMemoryTaskManager: Agent card (id: {base_agent_card.id if hasattr(base_agent_card, 'id') else 'N/A'}) does not support authenticated extended card.")
+            return GetAuthenticatedExtendedCardResponse(
+                id=rpc_request.id,
+                error=UnsupportedOperationError(message="Agent does not support authenticated extended card.")
+            )
+
+        # Create a deep copy of the base agent card to modify it
+        extended_card = base_agent_card.model_copy(deep=True)
+
+        logger.info(f"InMemoryTaskManager: Returning extended agent card for request: {rpc_request.id}")
+        return GetAuthenticatedExtendedCardResponse(id=rpc_request.id, result=extended_card)
 
     def _validate_push_config(
         self,
