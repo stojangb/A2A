@@ -16,6 +16,7 @@ nav:
     - Enterprise-Ready Features: topics/enterprise-ready.md
     - Streaming & Asynchronous Operations: topics/streaming-and-async.md
   - Specification: specification.md
+  - Python SDK: python-sdk.md
   - Community: community.md
   - Partners: partners.md
   - Tutorial (Python):
@@ -138,3 +139,15 @@ plugins:
         "tutorials/python/8-agent-capabilities.md": "tutorials/python/7-streaming-and-multiturn.md"
         "tutorials/python/9-ollama-agent.md": "tutorials/python/7-streaming-and-multiturn.md"
         "tutorials/python/10-next-steps.md": "tutorials/python/8-next-steps.md"
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - ../a2a-python/src
+          options:
+            docstring_style: google
+            members:
+              - "."
+            show_source: true
+            show_signature: true
+            show_root_heading: true

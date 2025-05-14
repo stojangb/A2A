@@ -5,27 +5,53 @@ on:
       - main
 permissions:
   contents: write
+defaults:
+  run:
+    working-directory: ./A2A
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # if on repo to avoid failing runs on forks
     if: |
       github.repository == 'google/A2A'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout A2A Documentation Repo
+        uses: actions/checkout@v4
+        with:
+          repository: google/A2A
+          path: A2A
+
+      - name: Checkout A2A Python Library Repo
+        uses: actions/checkout@v4
+        with:
+          repository: google/a2a-python
+          path: a2a-python
+
       - name: Configure Git Credentials
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
-      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
-      - uses: actions/cache@v4
+          python-version: 3.13
+
+      - name: Generate Cache ID
+        run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+
+      - name: Cache MkDocs dependencies
+        uses: actions/cache@v4
         with:
           key: mkdocs-material-${{ env.cache_id }}
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install -r requirements-docs.txt
-      - run: mkdocs gh-deploy --force
+        working-directory: ./A2A
+
+      - name: Install documentation dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: Install a2a-python library
+        run: pip install -e ../a2a-python
+
+      - name: Build and deploy MkDocs
+        run: mkdocs gh-deploy --force
