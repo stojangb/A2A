@@ -26,12 +26,14 @@ members = [
     "agents/langgraph",
     "agents/marvin",
     "hosts/cli",
+    "hosts/extended_agent_card_cli",
     "hosts/multiagent",
     "agents/llama_index_file_chat",
     "agents/semantickernel",
     "agents/mindsdb",
     "agents/ag2",
     "agents/veo_videogen_google_adk",
+    "agents/extended_agent_card_adk"
 ]
 
 [build-system]

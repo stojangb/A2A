@@ -303,6 +303,12 @@ class TaskResubscriptionRequest(JSONRPCRequest):
     params: TaskIdParams
 
 
+class GetAuthenticatedExtendedCardRequest(JSONRPCRequest):
+    method: Literal['agent/getAuthenticatedExtendedCard'] = 'agent/getAuthenticatedExtendedCard'
+    params: dict[str, Any] = Field(default_factory=dict)
+
+class GetAuthenticatedExtendedCardResponse(JSONRPCResponse):
+    result: Optional['AgentCard'] = None
 A2ARequest = TypeAdapter(
     Annotated[
         (
@@ -313,6 +319,7 @@ A2ARequest = TypeAdapter(
             | TaskResubscriptionRequest
             | SendMessageRequest
             | SendMessageStreamRequest
+            | GetAuthenticatedExtendedCardRequest
         ),
         Field(discriminator='method'),
     ]

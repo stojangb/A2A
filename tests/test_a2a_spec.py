@@ -24,6 +24,8 @@ from common.types import (
     DataPart,
     FileContent,
     FilePart,
+    GetAuthenticatedExtendedCardRequest,
+    GetAuthenticatedExtendedCardResponse,
     GetTaskPushNotificationRequest,
     GetTaskPushNotificationResponse,
     GetTaskRequest,
@@ -710,6 +712,40 @@ def test_task_subscription_request(schema, resolver):
     validate_instance(dumped_data, 'TaskResubscriptionRequest', schema, resolver)
 
 
+def test_get_authenticated_extended_card_request(schema, resolver):
+    instance = GetAuthenticatedExtendedCardRequest(id='auth-card-req-1')
+    dumped_data = instance.model_dump(mode='json', exclude_none=True)
+    assert dumped_data['method'] == 'agent/getAuthenticatedExtendedCard'
+    assert 'params' in dumped_data
+    assert dumped_data['params'] == {} # Ensure params is an empty object by default
+    validate_instance(dumped_data, 'GetAuthenticatedExtendedCardRequest', schema, resolver)
+
+
+def test_get_authenticated_extended_card_response(schema, resolver):
+    agent_card_result = AgentCard(
+        name='Extended Agent',
+        version='1.0-ext',
+        url='https://agent.example.com/extended',
+        capabilities=AgentCapabilities(streaming=True, pushNotifications=True),
+        skills=[AgentSkill(id='detail', name='Detailed Skill')],
+        supportsAuthenticatedExtendedCard=True
+    )
+    instance_success = GetAuthenticatedExtendedCardResponse(id='auth-card-resp-1', result=agent_card_result)
+    validate_instance(
+        instance_success.model_dump(mode='json', exclude_none=True),
+        'GetAuthenticatedExtendedCardResponse',
+        schema,
+        resolver,
+    )
+
+    error = UnsupportedOperationError()
+    instance_error = GetAuthenticatedExtendedCardResponse(id='auth-card-resp-2', error=error)
+    validate_instance(
+        instance_error.model_dump(mode='json', exclude_none=True),
+        'GetAuthenticatedExtendedCardResponse',
+        schema,
+        resolver,
+    )
 # --- A2ARequest Union ---
 # Use parametrize for testing multiple request types against the union schema
 @pytest.mark.parametrize(
@@ -735,6 +771,7 @@ def test_task_subscription_request(schema, resolver):
         ),
         GetTaskPushNotificationRequest(params=TaskIdParams(id='t6')),
         TaskResubscriptionRequest(params=TaskIdParams(id='t7')),
+        GetAuthenticatedExtendedCardRequest(id='req-union-authcard'),
     ],
 )
 def test_a2a_request_union(request_instance, schema, resolver):
