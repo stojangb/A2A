@@ -8,7 +8,7 @@ For tasks that produce incremental results (like generating a long document or s
 
 **Key Characteristics:**
 
-- **Initiation:** The client uses the `message/steam` RPC method to send an initial message (e.g., a prompt or command) and simultaneously subscribe to updates for that task.
+- **Initiation:** The client uses the `message/stream` RPC method to send an initial message (e.g., a prompt or command) and simultaneously subscribe to updates for that task.
 - **Server Capability:** The A2A Server must indicate its support for streaming by setting `capabilities.streaming: true` in its [Agent Card](../specification.md#552-agentcapabilities-object).
 - **Server Response (Connection):** If the subscription is successful, the server responds with an HTTP `200 OK` status and a `Content-Type: text/event-stream`. This HTTP connection remains open for the server to push events.
 - **Event Structure:** The server sends events over this stream. Each event's `data` field contains a JSON-RPC 2.0 Response object, specifically a [`SendStreamingMessageResponse`](../specification.md#721-sendstreamingmessageresponse-object). The `id` in this JSON-RPC response matches the `id` from the client's original `message/stream` request.
