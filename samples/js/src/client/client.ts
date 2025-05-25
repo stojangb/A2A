@@ -74,9 +74,10 @@ export class A2AClient {
         throw new Error("Fetched Agent Card does not contain a valid 'url' for the service endpoint.");
       }
       this.serviceEndpointUrl = agentCard.url; // Cache the service endpoint URL from the agent card
+      console.log("ENDOPINT", this.serviceEndpointUrl);
       return agentCard;
     } catch (error) {
-      console.error("Error fetching or parsing Agent Card:", error);
+      console.error("Error fetching or parsing Agent Card:");
       // Allow the promise to reject so users of agentCardPromise can handle it.
       throw error;
     }
@@ -220,6 +221,8 @@ export class A2AClient {
       params: params as { [key: string]: any; },
       id: clientRequestId,
     };
+
+    console.log("SENDING STREAM REQUEST:", endpoint);
 
     const response = await fetch(endpoint, {
       method: "POST",

@@ -134,7 +134,7 @@ function printAgentEvent(
 
 function printMessageContent(message: Message) {
   message.parts.forEach((part: Part, index: number) => { // Added explicit Part type
-    const partPrefix = colorize("gray", `  Part ${index + 1}:`);
+    const partPrefix = colorize("red", `  Part ${index + 1}:`);
     if (part.kind === "text") { // Check kind property
       console.log(`${partPrefix} ${colorize("green", "📝 Text:")}`, part.text);
     } else if (part.kind === "file") { // Check kind property
@@ -183,9 +183,9 @@ async function fetchAndDisplayAgentCard() {
     // to reflect the current agentName if it changes (though unlikely after initial fetch).
   } catch (error: any) {
     console.log(
-      colorize("yellow", `⚠️ Error fetching or parsing agent card: ${error.message}`)
+      colorize("yellow", `⚠️ Error fetching or parsing agent card`)
     );
-    console.log(colorize("dim", `Continuing with default agent name "${agentName}" and assuming capabilities.`));
+    throw error;
   }
 }
 
@@ -263,7 +263,7 @@ async function main() {
     };
 
     try {
-      console.log(colorize("gray", "Sending message..."));
+      console.log(colorize("red", "Sending message..."));
       // Use sendMessageStream
       const stream = client.sendMessageStream(params);
 
