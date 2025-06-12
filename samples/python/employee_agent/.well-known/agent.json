@@ -1,0 +1,18 @@
+{
+  "name": "Employee Lookup Agent",
+  "description": "Returns employee info from a SQLite database",
+  "url": "http://localhost:9999/",
+  "version": "0.1.0",
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "capabilities": {"streaming": true},
+  "skills": [
+    {
+      "id": "employee_lookup",
+      "name": "Lookup employees",
+      "description": "Query employee records by country",
+      "tags": ["employees"],
+      "examples": ["Show employees from España"]
+    }
+  ]
+}
